@@ -38,6 +38,7 @@
 #define GRAVITY       (0.075f)
 #define PHYSICS_FPS   (60)
 #define RENDER_FPS    (15)
+#define PALETTE_SIZE  (8)
 
 /* -------------------------------------------------------------------------- */
 
@@ -357,16 +358,17 @@ void render_particles(SDL_Renderer *renderer, particle_system_t *ps)
         if (alpha > 255) alpha = 255;
 
         // Set colour with alpha
-        intensity = (int)((p->life / p->max_life) * 15);
+        const int maxpal = (PALETTE_SIZE - 1);
+        intensity = (int)((p->life / p->max_life) * maxpal);
         palette = ps->styles[p->style - 1].palette;
-        c = &palette[15 - intensity];
+        c = &palette[maxpal - intensity];
         SDL_SetRenderDrawColor(renderer, c->r, c->g, c->b, (Uint8)alpha);
 
         rect(renderer, p->x, p->y, p->size);
     }
 
     // Draw the palettes
-    for (i = 0; i < 16; i++)
+    for (i = 0; i < PALETTE_SIZE; i++)
     {
         int x;
 
@@ -410,8 +412,8 @@ int main(void)
     };
 
 
-    SDL_Color         fire_palette[16];
-    SDL_Color         smoke_palette[16];
+    SDL_Color         fire_palette[PALETTE_SIZE];
+    SDL_Color         smoke_palette[PALETTE_SIZE];
     particle_style_t  styles[2];
     particle_system_t ps;
     SDL_Event         e;
@@ -449,8 +451,8 @@ int main(void)
     // Enable alpha blending
     // SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
-    createGradientPalette(firey, &fire_palette[0], 16);
-    createGradientPalette(smokey, &smoke_palette[0], 16);
+    createGradientPalette(firey, &fire_palette[0], PALETTE_SIZE);
+    createGradientPalette(smokey, &smoke_palette[0], PALETTE_SIZE);
 
     // Convert frame-based values to millisecond-based values
     // 1 frame = 1000/60 ms
