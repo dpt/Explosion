@@ -153,12 +153,11 @@ static void create_particle(particle_system_t *ps,
     s = &ps->styles[is_smoke];
     p->style = is_smoke + 1;
 
-    // Set initial position at explosion center
+    // Set initial position at explosion centre
     p->x = cx;
     p->y = cy;
 
     angle = randangle(s->emit_angle, s->emit_range);
-    //s->emit_angle += 0.25f; // HACK for spinning
     speed = randspeed(s->emit_speed);
 
     // Set velocity based on angle and speed (convert to pixels/second)
@@ -166,18 +165,14 @@ static void create_particle(particle_system_t *ps,
     p->vy = sinf(angle) * speed * s->vel_scale * PHYSICS_FPS;
 
     // Random lifetime between min and max (in milliseconds)
-    p->max_life = randrangef(s->min_life, s->max_life);
-
-    // Some particles have a delayed start (stored in delay milliseconds)
-    p->life = p->max_life + (ourrand() % (int)(s->delay + 1));
+    p->max_life = randrange(s->min_life, s->max_life);
 
     // Random size
     p->size = randrange(s->min_size, s->max_size);
 
-    // Record creation time
-    p->created_time = SDL_GetTicks();
-    p->initial_life = p->life;
-    p->last_update_time = p->created_time;
+    // Set created_time to a future time for delayed start (in milliseconds)
+    float delay_ms = randrangef(0.0f, s->max_delay);
+    p->created_time = SDL_GetTicks() + (Uint32)delay_ms;
 
     ps->active_count++;
 }
@@ -213,7 +208,7 @@ void create_explosion(particle_system_t *ps,
 }
 
 // Update particle system
-void update_particles(particle_system_t *ps)
+void update_particles(particle_system_t *ps, float dt)
 {
     Uint32 current_time = SDL_GetTicks();
 
@@ -224,42 +219,29 @@ void update_particles(particle_system_t *ps)
         particle_t *p = &ps->particles[i];
 
         if (p->style == 0)
+            continue; // inactive
+
+        // Check if particle hasn't started yet (delay)
+        if (current_time < p->created_time)
             continue;
 
         s = &ps->styles[p->style - 1];
 
-        // Calculate elapsed time since particle creation (in milliseconds)
-        Uint32 elapsed_ms = current_time - p->created_time;
+        // Update position based on velocity and delta time
+        p->x += p->vx * dt;
+        p->y += p->vy * dt;
 
-        // Calculate delta time since last update
-        float dt = (current_time - p->last_update_time) / 1000.0f;
+        // Update size decay exponentially based on delta time
+        p->size *= powf(s->size_decay, dt);
 
-        // Animate when ready (when delay period has passed)
-        if (elapsed_ms > (Uint32)s->delay)
-        {
-            // Update position based on velocity and delta time
-            p->x += p->vx * dt;
-            p->y += p->vy * dt;
+        // Apply gravity based on delta time
+        p->vy += s->gravity * dt;
 
-            // Update size decay exponentially based on delta time
-            p->size *= powf(s->size_decay, dt);
-
-            // Apply gravity based on delta time
-            p->vy += s->gravity * dt;
-
-            // Cascade
-            // if (ourrand() % 1000 == 0)
-            //     create_explosion(ps, p->x, p->y, 10, 0);
-        }
-
-        // Update life (represents remaining lifespan)
-        p->life = p->initial_life - elapsed_ms;
-
-        // Update last update time
-        p->last_update_time = current_time;
+        // Calculate elapsed time since particle activation (in milliseconds)
+        Uint32 age = current_time - p->created_time;
 
         // Check if particle should die
-        if (p->life <= 0 || p->size <= 0.1f || (unsigned int) p->x >= WIDTH || (unsigned int) p->y >= HEIGHT)
+        if (age >= p->max_life || p->size <= 0.1f || (unsigned int) p->x >= WIDTH || (unsigned int) p->y >= HEIGHT)
         {
             p->style = 0;
             ps->active_count--;
@@ -285,30 +267,31 @@ void render_particles(SDL_Renderer *renderer, particle_system_t *ps)
 {
     int              i;
     particle_t      *p;
-    const SDL_Color *c;
+    float            age_ratio;
     float	         alpha;
-    int              intensity;
-    const SDL_Color *palette;
+    float            index;
+    const SDL_Color *c;
+
+    Uint32 current_time = SDL_GetTicks();
 
     for (i = 0; i < MAX_PARTICLES; i++)
     {
         p = &ps->particles[i];
-
-        if (p->style == 0 || p->life >= p->max_life)
+        if (p->style == 0 || current_time < p->created_time)
             continue;
 
-        // Calculate alpha based on life
-        alpha = powf(p->life / p->max_life, 0.4545f) * 255.0f;
-        if (ourrand() & 1) alpha *= 2;
+        // Calculate alpha from age
+        age_ratio = (float) (current_time - p->created_time) / p->max_life;
+        alpha = powf(age_ratio, 0.4545f) * 255.0f;
+        if (ourrand() & 1) alpha *= 2; // random flicker (50% chance)
         if (alpha > 255) alpha = 255;
 
         // Set colour with alpha
-        const int maxpal = (PALETTE_SIZE - 1);
-        intensity = (int)((p->life / p->max_life) * maxpal);
-        palette = ps->styles[p->style - 1].palette;
-        c = &palette[maxpal - intensity];
+        index = age_ratio * PALETTE_SIZE;
+        c = &ps->styles[p->style - 1].palette[(int) index];
         SDL_SetRenderDrawColor(renderer, c->r, c->g, c->b, (Uint8)alpha);
 
+        // Draw
         rect(renderer, p->x, p->y, p->size);
     }
 
