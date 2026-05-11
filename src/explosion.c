@@ -304,6 +304,10 @@ void update_particles(particle_system_t *ps)
 
             // Apply gravity based on delta time
             p->vy += s->gravity * dt;
+
+            // Cascade
+            // if (ourrand() % 1000 == 0)
+            //     create_explosion(ps, p->x, p->y, 10, 0);
         }
 
         // Update life (represents remaining lifespan)
@@ -427,7 +431,7 @@ int main(void)
 
     // Create window
     SDL_Window *window = SDL_CreateWindow("Retro Explosion Particle System",
-					  WIDTH * SCALE, HEIGHT * SCALE, 0);
+                                          WIDTH * SCALE, HEIGHT * SCALE, 0);
     if (window == NULL)
     {
         printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
@@ -447,9 +451,6 @@ int main(void)
 
     // Set render scale to 2x for pixel doubling effect
     SDL_SetRenderScale(renderer, SCALE, SCALE);
-
-    // Enable alpha blending
-    // SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
     createGradientPalette(firey, &fire_palette[0], PALETTE_SIZE);
     createGradientPalette(smokey, &smoke_palette[0], PALETTE_SIZE);
@@ -489,9 +490,9 @@ int main(void)
 
     // Create initial explosion
     create_explosion(&ps,
-                  WIDTH / 2, HEIGHT / 2,
-                  NPARTICLES,
-                  0);
+                     WIDTH / 2, HEIGHT / 2,
+                     NPARTICLES,
+                     0);
 
     srand(time(NULL));
 
@@ -533,8 +534,12 @@ int main(void)
                 case SDLK_SPACE:
                     pause = !pause;
                     break;
+                case SDLK_B:
+                    // Enable alpha blending
+                    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+                    break;
                 case SDLK_G:
-
+                    // TODO - gravity
                     break;
                 case SDLK_Q:
                     quit = 1;
@@ -575,7 +580,7 @@ int main(void)
         // Render particles
         render_particles(renderer, &ps);
 
-       // SDL_Delay(rand() % 100); // TEST
+        // SDL_Delay(rand() % 100); // TEST
 
         // Update screen
         SDL_RenderPresent(renderer);
