@@ -12,4 +12,4 @@ add_executable(Explosions
 
 target_compile_options(Explosions PRIVATE -Wall -Wextra -Wpedantic)
 
-target_link_libraries(Explosions SDL3::SDL3)
+target_link_libraries(Explosions m SDL3::SDL3)
