@@ -18,6 +18,7 @@
 #define PHYSICS_FPS   (60)
 #define RENDER_FPS    (30)
 #define PALETTE_SIZE  (8)
+#define SMOKE_PC      (8)
 
 /* -------------------------------------------------------------------------- */
 
@@ -38,14 +39,12 @@ typedef struct particle
 // Particle style
 typedef struct particle_style
 {
-    float   min_life;   // milliseconds [TIME]
-    float   max_life;   // milliseconds [TIME]
+    float   min_life, max_life; // milliseconds [TIME]
     float   vel_scale;  // factor
     float   emit_angle; // degrees (0/90/180/270 is right/down/left/up)
     float   emit_range; // degrees
     float   emit_speed; // 200 is fast
-    int     min_size;   // pixels
-    int     max_size;   // pixels
+    int     min_size, max_size; // pixels
     float   delay;      // milliseconds [TIME]
     float   gravity;    // per millisecond
     float   size_decay; // factor (per-millisecond)
@@ -56,7 +55,6 @@ typedef struct particle_style
 typedef struct particle_system
 {
     // config
-    int     smoke_pc;	// percentage smoke [ought to be array of factors per style]
     const particle_style_t *styles;
 
     // state
@@ -80,8 +78,7 @@ void create_gradient_palette(const gradientstop_t *colours,
 /* -------------------------------------------------------------------------- */
 
 void init_particle_system(particle_system_t      *ps,
-                          const particle_style_t *styles,
-                          int                     smoke_pc);
+                          const particle_style_t *styles);
 
 void update_particles(particle_system_t *ps);
 
@@ -89,11 +86,12 @@ void create_explosion(particle_system_t *ps,
                       int                cx,
                       int                cy,
                       int                particle_count,
+                      int                smoke_pc,
                       int                create_additional);
 
 void render_particles(SDL_Renderer *renderer, particle_system_t *ps);
 
-int is_active(particle_system_t *ps);
+int is_active(const particle_system_t *ps);
 
 #endif // EXPLOSION_H
 

@@ -99,7 +99,7 @@ static float randrangef(float min, float max)
 // Return a random angle
 static float randangle(float angle, float range)
 {
-    return (angle + fmodf(ourrand(), range) - range / 2.0f) * M_PI / 180.0f;
+    return (angle + fmodf(ourrand(), range) - range / 2.0f) * (float) M_PI / 180.0f;
 }
 
 // Return a random speed
@@ -110,14 +110,11 @@ static float randspeed(unsigned int speed)
 
 // Initialize particle system
 void init_particle_system(particle_system_t      *ps,
-                          const particle_style_t *styles,
-                          int                     smoke_pc)
+                          const particle_style_t *styles)
 {
     int i;
 
-
     ps->styles = styles;
-    ps->smoke_pc = smoke_pc;
 
     // Initialize all particles to inactive
     for (i = 0; i < MAX_PARTICLES; i++)
@@ -127,11 +124,17 @@ void init_particle_system(particle_system_t      *ps,
 }
 
 // Create a new particle
-static void create_particle(particle_system_t *ps, int cx, int cy)
+static void create_particle(particle_system_t *ps,
+                            int                cx,
+                            int                cy,
+                            int                smoke_pc)
 {
     int                     i;
-    const particle_style_t *s;
     particle_t             *p;
+    const particle_style_t *s;
+    int                     is_smoke;
+    float                   angle;
+    float                   speed;
 
     if (ps->active_count >= MAX_PARTICLES)
         return;
@@ -146,7 +149,7 @@ static void create_particle(particle_system_t *ps, int cx, int cy)
     p = &ps->particles[i];
 
     // Choose a style
-    int is_smoke = (ourrand() % 100) < (unsigned int) ps->smoke_pc;
+    is_smoke = (ourrand() % 100) < (unsigned int) smoke_pc;
     s = &ps->styles[is_smoke];
     p->style = is_smoke + 1;
 
@@ -154,17 +157,16 @@ static void create_particle(particle_system_t *ps, int cx, int cy)
     p->x = cx;
     p->y = cy;
 
-    float angle = randangle(s->emit_angle, s->emit_range);
+    angle = randangle(s->emit_angle, s->emit_range);
     //s->emit_angle += 0.25f; // HACK for spinning
-    float speed = randspeed(s->emit_speed);
+    speed = randspeed(s->emit_speed);
 
     // Set velocity based on angle and speed (convert to pixels/second)
     p->vx = cosf(angle) * speed * s->vel_scale * PHYSICS_FPS;
     p->vy = sinf(angle) * speed * s->vel_scale * PHYSICS_FPS;
 
     // Random lifetime between min and max (in milliseconds)
-    float random_life = randrangef(s->min_life, s->max_life);
-    p->max_life = random_life;
+    p->max_life = randrangef(s->min_life, s->max_life);
 
     // Some particles have a delayed start (stored in delay milliseconds)
     p->life = p->max_life + (ourrand() % (int)(s->delay + 1));
@@ -185,24 +187,27 @@ void create_explosion(particle_system_t *ps,
                       int                cx,
                       int                cy,
                       int                particle_count,
+                      int                smoke_pc,
                       int                create_additional)
 {
-    for (int i = 0; i < particle_count; i++)
-        create_particle(ps, cx, cy);
+    int i;
+
+    for (i = 0; i < particle_count; i++)
+        create_particle(ps, cx, cy, smoke_pc);
 
     // Create additional explosions if requested
     if (create_additional && ps->active_count > 0)
     {
         // Create 1-3 additional smaller explosions
         int additional_count = 1 + (ourrand() % 3);
-        for (int i = 0; i < additional_count; i++)
+        for (i = 0; i < additional_count; i++)
         {
             // Create explosion at random position near main explosion
             float x = cx + (ourrand() % 100) - 50;
             float y = cy + (ourrand() % 100) - 50;
 
             // Create temporary system for additional explosion
-            create_explosion(ps, x, y, 30, 0); // No further additional explosions
+            create_explosion(ps, x, y, 30, smoke_pc, 0); // No further additional explosions
         }
     }
 }
@@ -254,8 +259,7 @@ void update_particles(particle_system_t *ps)
         p->last_update_time = current_time;
 
         // Check if particle should die
-        if (p->life <= 0 || p->size <= 0.1f ||
-                (unsigned) p->x >= WIDTH || (unsigned) p->y >= HEIGHT)
+        if (p->life <= 0 || p->size <= 0.1f || (unsigned int) p->x >= WIDTH || (unsigned int) p->y >= HEIGHT)
         {
             p->style = 0;
             ps->active_count--;
@@ -326,7 +330,7 @@ void render_particles(SDL_Renderer *renderer, particle_system_t *ps)
 }
 
 // Check if system has active particles
-int is_active(particle_system_t *ps)
+int is_active(const particle_system_t *ps)
 {
     return ps->active_count > 0;
 }

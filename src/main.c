@@ -101,12 +101,13 @@ int main(void)
     styles[1].palette    = smoke_palette;
 
     // Initialize particle system
-    init_particle_system(&ps, styles, 8 /* smoke % */);
+    init_particle_system(&ps, styles);
 
     // Create initial explosion
     create_explosion(&ps,
                      WIDTH / 2, HEIGHT / 2,
                      NPARTICLES,
+                     SMOKE_PC,
                      0);
 
     srand(time(NULL));
@@ -134,7 +135,11 @@ int main(void)
                 switch (e.button.button)
                 {
                 case 1:
-                    create_explosion(&ps, e.button.x / SCALE, e.button.y / SCALE, nparticles, 1);
+                    create_explosion(&ps,
+                                    e.button.x / SCALE, e.button.y / SCALE,
+                                    nparticles,
+                                    SMOKE_PC,
+                                    1);
                     break;
                 case 2:
                     break;
@@ -163,7 +168,11 @@ int main(void)
                 break;
 
             case SDL_EVENT_MOUSE_MOTION:
-                create_explosion(&ps, e.button.x / SCALE, e.button.y / SCALE, 1, 0);
+                create_explosion(&ps,
+                    e.button.x / SCALE, e.button.y / SCALE,
+                    1,
+                    100 - SMOKE_PC,
+                    0);
                 break;
 
             case SDL_EVENT_MOUSE_WHEEL:
@@ -185,7 +194,10 @@ int main(void)
 
             // Add more particles when idle
             if (!is_active(&ps))
-                create_explosion(&ps, rand() % WIDTH, rand() % HEIGHT, NPARTICLES, 0);
+                create_explosion(&ps,
+                    rand() % WIDTH, rand() % HEIGHT,
+                    NPARTICLES, SMOKE_PC,
+                    0);
         }
 
         // Clear screen
