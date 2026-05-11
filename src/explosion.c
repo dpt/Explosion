@@ -16,7 +16,6 @@
 
 // TODO
 // - Particle spin
-// - Separate physics from frame rate
 // - Random number pool
 // - Explosion types - improve
 // - Re-explosions
@@ -25,7 +24,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 
 #include <SDL3/SDL.h>
 
@@ -38,7 +36,8 @@
 #define MAX_PARTICLES (1000)
 #define NPARTICLES    (MAX_PARTICLES / 2)
 #define GRAVITY       (0.075f)
-#define FPS           (60)
+#define PHYSICS_FPS   (60)
+#define RENDER_FPS    (15)
 
 /* -------------------------------------------------------------------------- */
 
@@ -48,25 +47,28 @@ typedef struct particle
     int     style;      // stores (style+1); 0 means inactive
     float   x, y;       // position
     float   vx, vy;     // velocity
-    float   life;       // current life (life > max_life means don't render yet)
-    float   max_life;   // maximum life
+    float   life;       // current life in milliseconds (life > max_life means don't render yet)
+    float   max_life;   // maximum life in milliseconds
     float   size;       // particle size
+    Uint32  created_time; // SDL tick time when particle was created (milliseconds)
+    float   initial_life; // initial total life including delay
+    Uint32  last_update_time; // last time physics were updated
 } particle_t;
 
 // Particle style
 typedef struct particle_style
 {
-    int     min_life;   // frames [TIME]
-    int     max_life;   // frames [TIME]
+    float   min_life;   // milliseconds [TIME]
+    float   max_life;   // milliseconds [TIME]
     float   vel_scale;  // factor
     float   emit_angle; // degrees (0/90/180/270 is right/down/left/up)
     float   emit_range; // degrees
     float   emit_speed; // 200 is fast
     int     min_size;   // pixels
     int     max_size;   // pixels
-    int     delay;      // frames [TIME]
-    float   gravity;
-    float   size_decay; // factor (per-frame)
+    float   delay;      // milliseconds [TIME]
+    float   gravity;    // per millisecond
+    float   size_decay; // factor (per-millisecond)
     SDL_Color *palette;
 } particle_style_t;
 
@@ -149,6 +151,12 @@ static int randrange(int min, int max)
     return min + (ourrand() % (max + 1 - min));
 }
 
+// Return a random value in the specified float range
+static float randrangef(float min, float max)
+{
+    return min + ((float)ourrand() / (float)UINT32_MAX) * (max - min);
+}
+
 // Return a random angle
 static float randangle(float angle, float range)
 {
@@ -182,18 +190,18 @@ void init_particle_system(particle_system_t      *ps,
 // Create a new particle
 void create_particle(particle_system_t *ps, int cx, int cy)
 {
+    int                     i;
     const particle_style_t *s;
     particle_t             *p;
 
     if (ps->active_count >= MAX_PARTICLES)
         return;
 
-    int i = 0;
     // Find first inactive particle
-    while (i < MAX_PARTICLES && ps->particles[i].style > 0)
-        i++;
-
-    if (i >= MAX_PARTICLES)
+    for (i = 0; i < MAX_PARTICLES; i++)
+        if (ps->particles[i].style == 0)
+            break;
+    if (i == MAX_PARTICLES)
         return;
 
     p = &ps->particles[i];
@@ -211,24 +219,34 @@ void create_particle(particle_system_t *ps, int cx, int cy)
     //s->emit_angle += 0.25f; // HACK for spinning
     float speed = randspeed(s->emit_speed);
 
-    // Set velocity based on angle and speed
-    p->vx = cosf(angle) * speed * s->vel_scale;
-    p->vy = sinf(angle) * speed * s->vel_scale;
+    // Set velocity based on angle and speed (convert to pixels/second)
+    p->vx = cosf(angle) * speed * s->vel_scale * PHYSICS_FPS;
+    p->vy = sinf(angle) * speed * s->vel_scale * PHYSICS_FPS;
 
-    // Random lifetime between 30-80 frames
-    p->max_life = randrange(s->min_life, s->max_life);
+    // Random lifetime between min and max (in milliseconds)
+    float random_life = randrangef(s->min_life, s->max_life);
+    p->max_life = random_life;
 
-    // Some particles have a delayed start
-    p->life = p->max_life + (ourrand() % s->delay);
+    // Some particles have a delayed start (stored in delay milliseconds)
+    p->life = p->max_life + (ourrand() % (int)(s->delay + 1));
 
-    // Random size between 1-4 pixels
+    // Random size
     p->size = randrange(s->min_size, s->max_size);
+
+    // Record creation time
+    p->created_time = SDL_GetTicks();
+    p->initial_life = p->life;
+    p->last_update_time = p->created_time;
 
     ps->active_count++;
 }
 
 // Create explosion effect with additional explosions
-void create_explosion(particle_system_t *ps, int cx, int cy, int particle_count, int create_additional)
+void create_explosion(particle_system_t *ps,
+                      int                cx,
+                      int                cy,
+                      int                particle_count,
+                      int                create_additional)
 {
     for (int i = 0; i < particle_count; i++)
         create_particle(ps, cx, cy);
@@ -253,6 +271,8 @@ void create_explosion(particle_system_t *ps, int cx, int cy, int particle_count,
 // Update particle system
 void update_particles(particle_system_t *ps)
 {
+    Uint32 current_time = SDL_GetTicks();
+
     for (int i = 0; i < MAX_PARTICLES; i++)
     {
         const particle_style_t *s;
@@ -264,25 +284,35 @@ void update_particles(particle_system_t *ps)
 
         s = &ps->styles[p->style - 1];
 
-        // Animate when ready
-        if (p->life < p->max_life)
+        // Calculate elapsed time since particle creation (in milliseconds)
+        Uint32 elapsed_ms = current_time - p->created_time;
+
+        // Calculate delta time since last update
+        float delta_ms = (float)(current_time - p->last_update_time);
+        float dt = delta_ms / 1000.0f;
+
+        // Animate when ready (when delay period has passed)
+        if (elapsed_ms > (Uint32)s->delay)
         {
-            // Update position
-            p->x += p->vx;
-            p->y += p->vy;
+            // Update position based on velocity and delta time
+            p->x += p->vx * dt;
+            p->y += p->vy * dt;
 
-            // Update size
-            p->size *= s->size_decay;
+            // Update size decay exponentially based on delta time
+            p->size *= powf(s->size_decay, dt);
 
-            // Apply gravity
-            p->vy += s->gravity;
+            // Apply gravity based on delta time
+            p->vy += s->gravity * dt;
         }
 
-        // Update life
-        p->life -= 1.0f;
+        // Update life (represents remaining lifespan)
+        p->life = p->initial_life - elapsed_ms;
+
+        // Update last update time
+        p->last_update_time = current_time;
 
         // Check if particle should die
-        if (p->life <= 0 || p->size <= 0 ||
+        if (p->life <= 0 || p->size <= 0.1f ||
                 (unsigned) p->x >= WIDTH || (unsigned) p->y >= HEIGHT)
         {
             p->style = 0;
@@ -422,30 +452,34 @@ int main(void)
     createGradientPalette(firey, &fire_palette[0], 16);
     createGradientPalette(smokey, &smoke_palette[0], 16);
 
-    styles[0].min_life   = 30;
-    styles[0].max_life   = 90;
+    // Convert frame-based values to millisecond-based values
+    // 1 frame = 1000/60 ms
+    float frame_ms = 1000.0f / PHYSICS_FPS;
+
+    styles[0].min_life   = 30 * frame_ms;
+    styles[0].max_life   = 90 * frame_ms;
     styles[0].vel_scale  = 1.0f;
     styles[0].emit_angle = 270.0f; // point up
     styles[0].emit_range = 90.0f;  // quarter circle
     styles[0].emit_speed = 100.0f;
     styles[0].min_size   = 1;
     styles[0].max_size   = 3;
-    styles[0].delay      = FPS; // frames
-    styles[0].gravity    = GRAVITY;
-    styles[0].size_decay = 0.999f;
+    styles[0].delay      = frame_ms; // milliseconds
+    styles[0].gravity    = GRAVITY * PHYSICS_FPS * PHYSICS_FPS; // pixels/second/second
+    styles[0].size_decay = powf(0.999f, PHYSICS_FPS); // per-second decay factor
     styles[0].palette    = fire_palette;
 
-    styles[1].min_life   = 120;
-    styles[1].max_life   = 180;
+    styles[1].min_life   = 120 * frame_ms;
+    styles[1].max_life   = 180 * frame_ms;
     styles[1].vel_scale  = 0.1f;
     styles[1].emit_angle = 0.0f;   // point right
     styles[1].emit_range = 360.0f; // full circle
     styles[1].emit_speed = 50.0f;
     styles[1].min_size   = 1;
     styles[1].max_size   = 2;
-    styles[1].delay      = FPS; // frames
-    styles[1].gravity    = GRAVITY * 0.025;
-    styles[1].size_decay = 0.999f;
+    styles[1].delay      = frame_ms; // milliseconds
+    styles[1].gravity    = styles[0].gravity * 0.025f; // pixels/second/second
+    styles[1].size_decay = powf(0.999f, PHYSICS_FPS); // per-second decay factor
     styles[1].palette    = smoke_palette;
 
     // Initialize particle system
@@ -456,6 +490,8 @@ int main(void)
                   WIDTH / 2, HEIGHT / 2,
                   NPARTICLES,
                   0);
+
+    srand(time(NULL));
 
     // Game loop
     int quit = 0;
@@ -535,6 +571,8 @@ int main(void)
         // Render particles
         render_particles(renderer, &ps);
 
+       // SDL_Delay(rand() % 100); // TEST
+
         // Update screen
         SDL_RenderPresent(renderer);
 
@@ -544,8 +582,8 @@ int main(void)
         float elapsedMS = (end - start) / (float)SDL_GetPerformanceFrequency() * 1000.0f;
 //        printf("fps: %.2f\n", 1.0 / (elapsedMS / 1000.0f));
 
-        // Cap to configured FPS
-        SDL_Delay(floor(1000.0f / FPS - elapsedMS));
+        // Cap to RENDER_FPS FPS (not PHYSICS_FPS)
+        SDL_Delay(floor(1000.0f / RENDER_FPS - elapsedMS));
     }
 
     // Cleanup
