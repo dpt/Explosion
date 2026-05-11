@@ -9,16 +9,16 @@
 //
 // Use:
 // - an initial burst will happen
-// - click with mouse buttons to do new bursts (three styles - one per button)
+// - click with mouse button to do new burst
+// - single particles will spawn as you move your mouse
 // - when idle a random burst will happen
-// - press 'g' to toggle gravity
-// - mouse wheel to adjust gravity (g-g to reset)
+// - mouse wheel to adjust number of particles spewed on clicks
 
 // TODO
 // - Particle spin
-// - Random number pool
-// - Explosion types - improve
-// - Re-explosions
+// - Random number pool for performance
+// - Explosion types - add/improve
+// - Cascades (particles randomly trigger more bursts)
 
 #include <assert.h>
 #include <math.h>
@@ -37,7 +37,7 @@
 #define NPARTICLES    (MAX_PARTICLES / 2)
 #define GRAVITY       (0.075f)
 #define PHYSICS_FPS   (60)
-#define RENDER_FPS    (15)
+#define RENDER_FPS    (30)
 #define PALETTE_SIZE  (8)
 
 /* -------------------------------------------------------------------------- */
@@ -372,15 +372,15 @@ void render_particles(SDL_Renderer *renderer, particle_system_t *ps)
     {
         int x;
 
-        x = (i + 1) * SCALE;
+        x = (i + 1) * 4;
 
         c = &ps->styles[0].palette[i];
         SDL_SetRenderDrawColor(renderer, c->r, c->g, c->b, 255);
-        rect(renderer, x, SCALE * 1, SCALE);
+        rect(renderer, x, 4 * 1, 4);
 
         c = &ps->styles[1].palette[i];
         SDL_SetRenderDrawColor(renderer, c->r, c->g, c->b, 255);
-        rect(renderer, x, SCALE * 2, SCALE);
+        rect(renderer, x, 4 * 2, 4);
     }
 }
 
@@ -498,6 +498,7 @@ int main(void)
     // Game loop
     int quit = 0;
     int pause = 0;
+    int nparticles = NPARTICLES;
 
     while (!quit)
     {
@@ -517,7 +518,7 @@ int main(void)
                 switch (e.button.button)
                 {
                 case 1:
-                    create_explosion(&ps, e.button.x / SCALE, e.button.y / SCALE, NPARTICLES, 1);
+                    create_explosion(&ps, e.button.x / SCALE, e.button.y / SCALE, nparticles, 1);
                     break;
                 case 2:
                     break;
@@ -546,8 +547,9 @@ int main(void)
                 break;
 
             case SDL_EVENT_MOUSE_WHEEL:
-                //ps.styles[0].gravity += e.wheel.y / 100.0f;
-                //ps.styles[1].gravity = ps.styles[0].gravity * 0.025;
+                nparticles += e.wheel.y * 10.0f;
+                if (nparticles <= 0) nparticles = 1;
+                if (nparticles > MAX_PARTICLES) nparticles = MAX_PARTICLES;
                 break;
 
                 //default:
