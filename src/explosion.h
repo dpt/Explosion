@@ -9,6 +9,8 @@
 /* -------------------------------------------------------------------------- */
 
 // Config
+//
+
 #define SCALE         (4)       // screen scale
 #define WIDTH         (256)     // screen width (pixels)
 #define HEIGHT        (192)     // screen height (pixels)
@@ -63,6 +65,8 @@ typedef struct particle_system
 } particle_system_t;
 
 /* -------------------------------------------------------------------------- */
+
+void reset_particle_system(particle_system_t *ps);
 
 void init_particle_system(particle_system_t      *ps,
                           const particle_style_t *styles,

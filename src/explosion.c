@@ -81,6 +81,17 @@ static float randspeed(unsigned int speed)
 
 /* -------------------------------------------------------------------------- */
 
+void reset_particle_system(particle_system_t *ps)
+{
+    int i;
+
+    // Initialize all particles to inactive
+    for (i = 0; i < MAX_PARTICLES; i++)
+        ps->particles[i].style = 0;
+
+    ps->active_count = 0;
+}
+
 // Initialize particle system
 void init_particle_system(particle_system_t      *ps,
                           const particle_style_t *styles,
@@ -114,11 +125,7 @@ void init_particle_system(particle_system_t      *ps,
         ps->chance[i] = s;
     }
 
-    // Initialize all particles to inactive
-    for (i = 0; i < MAX_PARTICLES; i++)
-        ps->particles[i].style = 0;
-
-    ps->active_count = 0;
+    reset_particle_system(ps);
 }
 
 // Set default fire particle style

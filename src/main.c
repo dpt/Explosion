@@ -170,15 +170,24 @@ int main(void)
                 }
                 break;
 
-            case SDL_EVENT_KEY_UP:
+            case SDL_EVENT_KEY_DOWN:
                 switch (e.key.key)
                 {
                 case SDLK_SPACE:
                     pause = !pause;
                     break;
+                case SDLK_DELETE:
+                    reset_particle_system(&ps);
+                    break;
                 case SDLK_B:
                     // Enable alpha blending
-                    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+                    if (e.key.mod & SDL_KMOD_SHIFT) {
+                        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+                        printf("Blending disabled\n");
+                    } else {
+                        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+                        printf("Blending enabled\n");
+                    }
                     break;
                 case SDLK_G:
                     // Disable gravity
