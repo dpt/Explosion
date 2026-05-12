@@ -9,20 +9,20 @@
 /* -------------------------------------------------------------------------- */
 
 // Config
-#define SCALE         (4)
-#define WIDTH         (256)
-#define HEIGHT        (192)
-#define MAX_PARTICLES (1000)
-#define NPARTICLES    (MAX_PARTICLES / 2)
-#define GRAVITY       (0.075f)
-#define PHYSICS_FPS   (60)
-#define RENDER_FPS    (30) // default
-#define PALETTE_SIZE  (8)
-#define CHANCE_BINS   (16) // number of bins to use for choosing random styles
+#define SCALE         (4)       // screen scale
+#define WIDTH         (256)     // screen width (pixels)
+#define HEIGHT        (192)     // screen height (pixels)
+#define MAX_PARTICLES (1000)    // maximum particles
+#define NPARTICLES    (MAX_PARTICLES / 2) // num. particles to spawn on clicks
+#define GRAVITY       (0.075f)  // default gravity
+#define PHYSICS_FPS   (60)      // FPS for physics (affects values)
+#define RENDER_FPS    (30)      // FPS for screen updates
+#define PALETTE_SIZE  (8)       // num. palette entries to generate
+#define CHANCE_BINS   (16)      // number of bins to use for choosing random styles
 
 /* -------------------------------------------------------------------------- */
 
-// Particle structure
+/// A single particle
 typedef struct particle
 {
     int     style;      // stores (style+1); 0 means inactive
@@ -33,7 +33,7 @@ typedef struct particle
     Uint32  created_time; // SDL tick time when particle should become active (milliseconds)
 } particle_t;
 
-// Particle style
+/// A particle style
 typedef struct particle_style
 {
     int     probability; // relative chance of use
@@ -49,7 +49,7 @@ typedef struct particle_style
     SDL_Color *palette;
 } particle_style_t;
 
-// Particle system structure
+/// A particle system
 typedef struct particle_system
 {
     // config
@@ -61,19 +61,6 @@ typedef struct particle_system
     int     active_count;
     char    chance[CHANCE_BINS];
 } particle_system_t;
-
-/* -------------------------------------------------------------------------- */
-
-// A gradient colour
-typedef struct gradientstop
-{
-    SDL_Color colour;
-    float     stop;
-} gradientstop_t;
-
-void create_gradient_palette(const gradientstop_t *colours,
-                             SDL_Color            *palette,
-                             int                   palette_size);
 
 /* -------------------------------------------------------------------------- */
 

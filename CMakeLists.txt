@@ -8,6 +8,8 @@ find_package(SDL3 REQUIRED)
 add_executable(Explosions
         src/explosion.c
         src/explosion.h
+        src/gradient.c
+        src/gradient.h
         src/main.c)
 
 target_compile_options(Explosions PRIVATE -Wall -Wextra -Wpedantic)

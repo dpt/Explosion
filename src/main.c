@@ -11,6 +11,7 @@
 #include <SDL3/SDL.h>
 
 #include "explosion.h"
+#include "gradient.h"
 
 #define NELEMS(a) (sizeof(a) / sizeof(a[0]))
 #define CLAMP(a,min,max) ((a) < (min) ? (min) : (a) > (max) ? (max) : a)
