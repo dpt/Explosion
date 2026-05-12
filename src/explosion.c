@@ -30,10 +30,12 @@
 
 #include "explosion.h"
 
+#include <assert.h>
+
 /* -------------------------------------------------------------------------- */
 
 // Function to interpolate between two colours
-static SDL_Color interpolateColour(SDL_Color a, SDL_Color b, float t)
+static SDL_Color interpolate_colour(SDL_Color a, SDL_Color b, float t)
 {
     SDL_Color result;
 
@@ -47,17 +49,17 @@ static SDL_Color interpolateColour(SDL_Color a, SDL_Color b, float t)
 // Create a gradient palette
 void create_gradient_palette(const gradientstop_t *colours,
                              SDL_Color            *palette,
-                             int                   paletteSize)
+                             int                   palette_size)
 {
     float t;
     int   seg;
-    float segmentStart;
-    float segmentEnd;
-    float segmentT;
+    float seg_start;
+    float seg_end;
+    float seg_t;
 
-    for (int i = 0; i < paletteSize; i++)
+    for (int i = 0; i < palette_size; i++)
     {
-        t = (float)i / (paletteSize - 1);
+        t = (float)i / (palette_size - 1);
 
         // Find which segment this index falls into
         for (seg = 0; ; seg++)
@@ -65,14 +67,14 @@ void create_gradient_palette(const gradientstop_t *colours,
                 break;
 
         // Calculate interpolation factor within segment
-        segmentStart = colours[seg + 0].stop;
-        segmentEnd   = colours[seg + 1].stop;
-        segmentT     = (t - segmentStart) / (segmentEnd - segmentStart);
+        seg_start = colours[seg + 0].stop;
+        seg_end   = colours[seg + 1].stop;
+        seg_t     = (t - seg_start) / (seg_end - seg_start);
 
         // Interpolate between colours
-        palette[i] = interpolateColour(colours[seg + 0].colour,
-                                       colours[seg + 1].colour,
-                                       segmentT);
+        palette[i] = interpolate_colour(colours[seg + 0].colour,
+                                        colours[seg + 1].colour,
+                                        seg_t);
     }
 }
 
@@ -110,11 +112,36 @@ static float randspeed(unsigned int speed)
 
 // Initialize particle system
 void init_particle_system(particle_system_t      *ps,
-                          const particle_style_t *styles)
+                          const particle_style_t *styles,
+                          int                     nstyles)
 {
+    int total;
     int i;
+    int s;
+    int cum;
+    int target;
 
-    ps->styles = styles;
+    ps->styles  = styles;
+    ps->nstyles = nstyles;
+
+    // Total probabilities
+    total = 0;
+    for (i = 0; i < nstyles; i++)
+        total += styles[i].probability;
+
+    // Build a probabilty table for O(1) selection
+    s = 0;
+    cum = styles[s].probability;
+    target = cum * CHANCE_BINS / total;
+    for (i = 0; i < CHANCE_BINS; i++)
+    {
+        if (i >= target)
+        {
+            cum += styles[++s].probability;
+            target = cum * CHANCE_BINS / total;
+        }
+        ps->chance[i] = s;
+    }
 
     // Initialize all particles to inactive
     for (i = 0; i < MAX_PARTICLES; i++)
@@ -123,16 +150,34 @@ void init_particle_system(particle_system_t      *ps,
     ps->active_count = 0;
 }
 
+// Set default fire particle style
+void set_default_style(particle_style_t *style,
+                       float             frame_ms,
+                       SDL_Color        *palette)
+{
+    style->min_life   = 30 * frame_ms;
+    style->max_life   = 90 * frame_ms;
+    style->vel_scale  = 1.0f;
+    style->emit_angle = 0.0f; // point right
+    style->emit_range = 360.0f;  // full circle
+    style->emit_speed = 100;
+    style->min_size   = 1;
+    style->max_size   = 3;
+    style->max_delay  = frame_ms; // milliseconds
+    style->gravity    = GRAVITY * PHYSICS_FPS * PHYSICS_FPS; // pixels/second/second
+    style->size_decay = powf(0.999f, PHYSICS_FPS); // per-second decay factor
+    style->palette    = palette;
+}
+
 // Create a new particle
 static void create_particle(particle_system_t *ps,
+                            int                style,
                             int                cx,
-                            int                cy,
-                            int                smoke_pc)
+                            int                cy)
 {
     int                     i;
     particle_t             *p;
     const particle_style_t *s;
-    int                     is_smoke;
     float                   angle;
     float                   speed;
 
@@ -147,11 +192,8 @@ static void create_particle(particle_system_t *ps,
         return;
 
     p = &ps->particles[i];
-
-    // Choose a style
-    is_smoke = (ourrand() % 100) < (unsigned int) smoke_pc;
-    s = &ps->styles[is_smoke];
-    p->style = is_smoke + 1;
+    s = &ps->styles[style];
+    p->style = style + 1;
 
     // Set initial position at explosion centre
     p->x = cx;
@@ -182,13 +224,17 @@ void create_explosion(particle_system_t *ps,
                       int                cx,
                       int                cy,
                       int                particle_count,
-                      int                smoke_pc,
                       int                create_additional)
 {
     int i;
+    int style;
 
     for (i = 0; i < particle_count; i++)
-        create_particle(ps, cx, cy, smoke_pc);
+    {
+        // Choose a style
+        style = ps->chance[ourrand() % CHANCE_BINS];
+        create_particle(ps, style, cx, cy);
+    }
 
     // Create additional explosions if requested
     if (create_additional && ps->active_count > 0)
@@ -202,7 +248,7 @@ void create_explosion(particle_system_t *ps,
             float y = cy + (ourrand() % 100) - 50;
 
             // Create temporary system for additional explosion
-            create_explosion(ps, x, y, 30, smoke_pc, 0); // No further additional explosions
+            create_explosion(ps, x, y, 30, 0); // No further additional explosions
         }
     }
 }
@@ -296,19 +342,14 @@ void render_particles(SDL_Renderer *renderer, particle_system_t *ps)
     }
 
     // Draw the palettes
-    for (i = 0; i < PALETTE_SIZE; i++)
+    for (int s = 0; s < 3; s++)
     {
-        int x;
-
-        x = (i + 1) * 4;
-
-        c = &ps->styles[0].palette[i];
-        SDL_SetRenderDrawColor(renderer, c->r, c->g, c->b, 255);
-        rect(renderer, x, 4 * 1, 4);
-
-        c = &ps->styles[1].palette[i];
-        SDL_SetRenderDrawColor(renderer, c->r, c->g, c->b, 255);
-        rect(renderer, x, 4 * 2, 4);
+        for (i = 0; i < PALETTE_SIZE; i++)
+        {
+            c = &ps->styles[s].palette[i];
+            SDL_SetRenderDrawColor(renderer, c->r, c->g, c->b, 255);
+            rect(renderer, (i + 1) * 4, 4 * (1+s), 4);
+        }
     }
 }
 

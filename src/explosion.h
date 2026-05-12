@@ -18,7 +18,7 @@
 #define PHYSICS_FPS   (60)
 #define RENDER_FPS    (30)
 #define PALETTE_SIZE  (8)
-#define SMOKE_PC      (8)
+#define CHANCE_BINS   (16) // number of bins to use for choosing random styles
 
 /* -------------------------------------------------------------------------- */
 
@@ -36,6 +36,7 @@ typedef struct particle
 // Particle style
 typedef struct particle_style
 {
+    int     probability; // relative chance of use
     int     min_life, max_life; // milliseconds
     float   vel_scale;  // velocity scale factor
     float   emit_angle; // degrees (0/90/180/270 is right/down/left/up)
@@ -53,10 +54,12 @@ typedef struct particle_system
 {
     // config
     const particle_style_t *styles;
+    int     nstyles;
 
     // state
     particle_t particles[MAX_PARTICLES];
     int     active_count;
+    char    chance[CHANCE_BINS];
 } particle_system_t;
 
 /* -------------------------------------------------------------------------- */
@@ -70,20 +73,24 @@ typedef struct gradientstop
 
 void create_gradient_palette(const gradientstop_t *colours,
                              SDL_Color            *palette,
-                             int                   paletteSize);
+                             int                   palette_size);
 
 /* -------------------------------------------------------------------------- */
 
 void init_particle_system(particle_system_t      *ps,
-                          const particle_style_t *styles);
+                          const particle_style_t *styles,
+                          int                     nstyles);
 
 void update_particles(particle_system_t *ps, float dt);
+
+void set_default_style(particle_style_t *style,
+                       float             frame_ms,
+                       SDL_Color        *palette);
 
 void create_explosion(particle_system_t *ps,
                       int                cx,
                       int                cy,
                       int                particle_count,
-                      int                smoke_pc,
                       int                create_additional);
 
 void render_particles(SDL_Renderer *renderer, particle_system_t *ps);

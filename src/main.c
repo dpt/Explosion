@@ -12,6 +12,9 @@
 
 #include "explosion.h"
 
+#define NELEMS(a) (sizeof(a) / sizeof(a[0]))
+#define CLAMP(a,min,max) ((a) < (min) ? (min) : (a) > (max) ? (max) : a)
+
 int main(void)
 {
     // Define colour stops
@@ -31,9 +34,17 @@ int main(void)
         { {   0,   0,   0, 255 }, 1.0f }, // Black
     };
 
+    static const gradientstop_t fleck[] =
+    {
+        { {   0, 255,   0, 255 }, 0.0f }, // Green
+        { {   0, 127,   0, 255 }, 0.5f }, // Dark Green
+        { {   0,   0,   0, 255 }, 1.0f }, // Black
+    };
+
     SDL_Color         fire_palette[PALETTE_SIZE];
     SDL_Color         smoke_palette[PALETTE_SIZE];
-    particle_style_t  styles[2];
+    SDL_Color         fleck_palette[PALETTE_SIZE];
+    particle_style_t  styles[3];
     particle_system_t ps;
     SDL_Event         e;
 
@@ -69,45 +80,40 @@ int main(void)
 
     create_gradient_palette(firey, &fire_palette[0], PALETTE_SIZE);
     create_gradient_palette(smokey, &smoke_palette[0], PALETTE_SIZE);
+    create_gradient_palette(fleck, &fleck_palette[0], PALETTE_SIZE);
 
     // Convert frame-based values to millisecond-based values
     // 1 frame = 1000/60 ms
     float frame_ms = 1000.0f / PHYSICS_FPS;
 
-    styles[0].min_life   = 30 * frame_ms;
-    styles[0].max_life   = 90 * frame_ms;
-    styles[0].vel_scale  = 1.0f;
-    styles[0].emit_angle = 270.0f; // point up
-    styles[0].emit_range = 90.0f;  // quarter circle
-    styles[0].emit_speed = 100;
-    styles[0].min_size   = 1;
-    styles[0].max_size   = 3;
-    styles[0].max_delay  = frame_ms; // milliseconds
-    styles[0].gravity    = GRAVITY * PHYSICS_FPS * PHYSICS_FPS; // pixels/second/second
-    styles[0].size_decay = powf(0.999f, PHYSICS_FPS); // per-second decay factor
-    styles[0].palette    = fire_palette;
+    // Set default styles
+    set_default_style(&styles[0], frame_ms, fire_palette);
+    set_default_style(&styles[1], frame_ms, smoke_palette);
+    set_default_style(&styles[2], frame_ms, fleck_palette);
 
-    styles[1].min_life   = 120 * frame_ms;
-    styles[1].max_life   = 180 * frame_ms;
-    styles[1].vel_scale  = 0.1f;
-    styles[1].emit_angle = 0.0f;   // point right
-    styles[1].emit_range = 360.0f; // full circle
-    styles[1].emit_speed = 50;
-    styles[1].min_size   = 1;
-    styles[1].max_size   = 2;
-    styles[1].max_delay  = frame_ms; // milliseconds
-    styles[1].gravity    = styles[0].gravity * 0.025f; // pixels/second/second
-    styles[1].size_decay = powf(0.999f, PHYSICS_FPS); // per-second decay factor
-    styles[1].palette    = smoke_palette;
+    // Set differences from defaults
+    styles[0].probability = 90;
+    styles[0].emit_angle  = 270.0f; // point up
+    styles[0].emit_range  = 90.0f;  // quarter circle
+
+    styles[1].probability = 8;
+    styles[1].min_life    = 120 * frame_ms;
+    styles[1].max_life    = 180 * frame_ms;
+    styles[1].vel_scale   = 0.1f;
+    styles[1].emit_speed  = 50;
+    styles[1].max_size    = 2;
+    styles[1].gravity     = styles[0].gravity * 0.025f; // pixels/second/second
+
+    styles[2].probability = 2;
+    styles[2].emit_speed  = 200;
 
     // Initialize particle system
-    init_particle_system(&ps, styles);
+    init_particle_system(&ps, styles, NELEMS(styles));
 
     // Create initial explosion
     create_explosion(&ps,
                      WIDTH / 2, HEIGHT / 2,
                      NPARTICLES,
-                     SMOKE_PC,
                      0);
 
     srand(time(NULL));
@@ -139,21 +145,18 @@ int main(void)
                     create_explosion(&ps,
                                      e.button.x / SCALE, e.button.y / SCALE,
                                      nparticles,
-                                     SMOKE_PC,
                                      1);
                     break;
                 case 2:
                     create_explosion(&ps,
                                      e.button.x / SCALE, e.button.y / SCALE,
                                      nparticles,
-                                     0,
                                      0);
                     break;
                 case 3:
                     create_explosion(&ps,
                                      e.button.x / SCALE, e.button.y / SCALE,
                                      nparticles,
-                                     100,
                                      0);
                     break;
                 }
@@ -182,15 +185,13 @@ int main(void)
             case SDL_EVENT_MOUSE_MOTION:
                 create_explosion(&ps,
                                  e.button.x / SCALE, e.button.y / SCALE,
-                                 10,
-                                 100 - SMOKE_PC,
+                                 1,
                                  0);
                 break;
 
             case SDL_EVENT_MOUSE_WHEEL:
                 nparticles += e.wheel.y * 10.0f;
-                if (nparticles <= 0) nparticles = 1;
-                if (nparticles > MAX_PARTICLES) nparticles = MAX_PARTICLES;
+                nparticles = CLAMP(nparticles, 1, MAX_PARTICLES);
                 break;
 
                 //default:
@@ -199,38 +200,38 @@ int main(void)
             }
         }
 
-         if (!pause)
-         {
-             // Update particles with delta time
-             Uint64 current_physics_time = SDL_GetPerformanceCounter();
-             float dt = (current_physics_time - last_physics_time) / (float)SDL_GetPerformanceFrequency();
-             last_physics_time = current_physics_time;
-             update_particles(&ps, dt);
+        if (!pause)
+        {
+            // Update particles with delta time
+            Uint64 current_physics_time = SDL_GetPerformanceCounter();
+            float dt = (current_physics_time - last_physics_time) / (float)SDL_GetPerformanceFrequency();
+            last_physics_time = current_physics_time;
+            update_particles(&ps, dt);
 
-             // Add more particles when idle
-             if (!is_active(&ps))
-                 create_explosion(&ps,
-                                  rand() % WIDTH, rand() % HEIGHT,
-                                  NPARTICLES, SMOKE_PC,
-                                  0);
-         }
+            // Add more particles when idle
+            if (!is_active(&ps))
+                create_explosion(&ps,
+                                 rand() % WIDTH, rand() % HEIGHT,
+                                 NPARTICLES,
+                                 0);
+        }
 
         // Clear screen
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
 
-         // Render particles
-         render_particles(renderer, &ps);
+        // Render particles
+        render_particles(renderer, &ps);
 
-         // Update screen
-         SDL_RenderPresent(renderer);
+        // Update screen
+        SDL_RenderPresent(renderer);
 
-         // Frame rate control
-         Uint64 end = SDL_GetPerformanceCounter();
+        // Frame rate control
+        Uint64 end = SDL_GetPerformanceCounter();
 
-         float elapsedMS = (end - start) / (float)SDL_GetPerformanceFrequency() * 1000.0f;
+        float elapsedMS = (end - start) / (float)SDL_GetPerformanceFrequency() * 1000.0f;
 
-         // Cap to RENDER_FPS FPS (not PHYSICS_FPS)
+        // Cap to RENDER_FPS FPS (not PHYSICS_FPS)
         SDL_Delay(floor(1000.0f / RENDER_FPS - elapsedMS));
     }
 
