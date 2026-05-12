@@ -113,7 +113,7 @@ int main(void)
     // Create initial explosion
     create_explosion(&ps,
                      WIDTH / 2, HEIGHT / 2,
-                     NPARTICLES,
+                     NPARTICLES, -1,
                      0);
 
     srand(time(NULL));
@@ -144,19 +144,19 @@ int main(void)
                 case 1:
                     create_explosion(&ps,
                                      e.button.x / SCALE, e.button.y / SCALE,
-                                     nparticles,
+                                     nparticles, -1,
                                      1);
                     break;
                 case 2:
                     create_explosion(&ps,
                                      e.button.x / SCALE, e.button.y / SCALE,
-                                     nparticles,
+                                     nparticles, 0,
                                      0);
                     break;
                 case 3:
                     create_explosion(&ps,
                                      e.button.x / SCALE, e.button.y / SCALE,
-                                     nparticles,
+                                     nparticles, 2,
                                      0);
                     break;
                 }
@@ -185,7 +185,7 @@ int main(void)
             case SDL_EVENT_MOUSE_MOTION:
                 create_explosion(&ps,
                                  e.button.x / SCALE, e.button.y / SCALE,
-                                 1,
+                                 1, 1,
                                  0);
                 break;
 
@@ -212,7 +212,7 @@ int main(void)
             if (!is_active(&ps))
                 create_explosion(&ps,
                                  rand() % WIDTH, rand() % HEIGHT,
-                                 NPARTICLES,
+                                 NPARTICLES, -1,
                                  0);
         }
 
