@@ -41,6 +41,11 @@ int main(void)
         { {   0,   0,   0, 255 }, 1.0f }, // Black
     };
 
+    // Frames/sec we'll allow for refresh
+    static const int fpses[] = {
+        1, 2, 5, 10, 15, 30, 60, 120, 240, 480, 960
+    };
+
     SDL_Color         fire_palette[PALETTE_SIZE];
     SDL_Color         smoke_palette[PALETTE_SIZE];
     SDL_Color         fleck_palette[PALETTE_SIZE];
@@ -122,6 +127,7 @@ int main(void)
     int quit = 0;
     int pause = 0;
     int nparticles = NPARTICLES;
+    int selectedFPS = 6; /* 60fps */
     Uint64 last_physics_time = SDL_GetPerformanceCounter();
 
     while (!quit)
@@ -179,6 +185,15 @@ int main(void)
                 case SDLK_Q:
                     quit = 1;
                     break;
+                case SDLK_LEFTBRACKET:
+                case SDLK_RIGHTBRACKET:
+                    selectedFPS += (e.key.key == SDLK_RIGHTBRACKET) ? +1 : -1;
+                    selectedFPS = CLAMP(selectedFPS, 0, NELEMS(fpses) - 1);
+                    printf("%dfps\n", fpses[selectedFPS]);
+                    break;
+                default:
+                    printf("key up: %s\n", SDL_GetKeyName(e.key.key));
+                    break;
                 }
                 break;
 
@@ -204,7 +219,7 @@ int main(void)
         {
             // Update particles with delta time
             Uint64 current_physics_time = SDL_GetPerformanceCounter();
-            float dt = (current_physics_time - last_physics_time) / (float)SDL_GetPerformanceFrequency();
+            float dt = (current_physics_time - last_physics_time) / (float) SDL_GetPerformanceFrequency();
             last_physics_time = current_physics_time;
             update_particles(&ps, dt);
 
@@ -229,10 +244,10 @@ int main(void)
         // Frame rate control
         Uint64 end = SDL_GetPerformanceCounter();
 
-        float elapsedMS = (end - start) / (float)SDL_GetPerformanceFrequency() * 1000.0f;
+        float elapsedMS = (end - start) / (float) SDL_GetPerformanceFrequency() * 1000.0f;
 
-        // Cap to RENDER_FPS FPS (not PHYSICS_FPS)
-        SDL_Delay(floor(1000.0f / RENDER_FPS - elapsedMS));
+        // Cap to renderFPS (not PHYSICS_FPS)
+        SDL_Delay(floorf(1000.0f / (float) fpses[selectedFPS] - elapsedMS));
     }
 
     // Cleanup

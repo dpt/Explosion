@@ -16,7 +16,7 @@
 #define NPARTICLES    (MAX_PARTICLES / 2)
 #define GRAVITY       (0.075f)
 #define PHYSICS_FPS   (60)
-#define RENDER_FPS    (30)
+#define RENDER_FPS    (30) // default
 #define PALETTE_SIZE  (8)
 #define CHANCE_BINS   (16) // number of bins to use for choosing random styles
 
