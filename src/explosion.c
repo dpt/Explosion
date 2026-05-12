@@ -2,22 +2,9 @@
 //
 // Particle effects
 //
-// Requires SDL3
-//
-// Build and run with:
-// cc -o explosion explosion.c `pkg-config sdl3 --cflags --libs` && ./explosion
-//
-// Use:
-// - an initial burst will happen
-// - click with mouse button to do new burst
-// - single particles will spawn as you move your mouse
-// - when idle a random burst will happen
-// - mouse wheel to adjust number of particles spewed on clicks
-//
 
 // TODO
 // - Particle spin
-// - Random number pool for performance
 // - Explosion types - add/improve
 // - Cascades (particles randomly trigger more bursts)
 // - Emitters (emit particles just by existing)
