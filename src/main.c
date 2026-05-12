@@ -237,7 +237,7 @@ int main(void)
         SDL_RenderClear(renderer);
 
         // Render particles
-        render_particles(renderer, &ps);
+        render_particles(&ps, renderer);
 
         // Update screen
         SDL_RenderPresent(renderer);

@@ -330,7 +330,7 @@ static void rect(SDL_Renderer* renderer, int x, int y, int size)
 }
 
 // Render particles to SDL surface
-void render_particles(SDL_Renderer *renderer, particle_system_t *ps)
+void render_particles(particle_system_t *ps, SDL_Renderer *renderer)
 {
     int              i;
     particle_t      *p;
