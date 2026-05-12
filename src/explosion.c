@@ -34,6 +34,9 @@
 
 /* -------------------------------------------------------------------------- */
 
+// Gradient generator
+//
+
 // Function to interpolate between two colours
 static SDL_Color interpolate_colour(SDL_Color a, SDL_Color b, float t)
 {
@@ -80,35 +83,65 @@ void create_gradient_palette(const gradientstop_t *colours,
 
 /* -------------------------------------------------------------------------- */
 
-// Unify our rand calls
-static unsigned int ourrand(void)
+// Random number pool
+//
+
+#define RAND_POOL_SIZE (1024 * 4)
+
+typedef struct
 {
-    return arc4random();
+    unsigned int pool[RAND_POOL_SIZE];
+    int index;
+} rand_pool_t;
+
+static rand_pool_t g_rand_pool =
+{
+    .index = RAND_POOL_SIZE
+};
+
+// Refill the random pool from system entropy
+static void refill_rand_pool(void)
+{
+    arc4random_buf(g_rand_pool.pool, sizeof(g_rand_pool.pool));
+    g_rand_pool.index = 0;
 }
+
+// Get next random number from pool, refilling if needed
+static unsigned int poolrand(void)
+{
+    if (g_rand_pool.index >= RAND_POOL_SIZE)
+        refill_rand_pool();
+
+    return g_rand_pool.pool[g_rand_pool.index++];
+}
+
+/* -------------------------------------------------------------------------- */
 
 // Return a random value in the specified range
 static int randrange(int min, int max)
 {
-    return min + (ourrand() % (max + 1 - min));
+    return min + (poolrand() % (max + 1 - min));
 }
 
 // Return a random value in the specified float range
 static float randrangef(float min, float max)
 {
-    return min + ((float)ourrand() / (float)UINT32_MAX) * (max - min);
+    return min + ((float)poolrand() / (float)UINT32_MAX) * (max - min);
 }
 
 // Return a random angle
 static float randangle(float angle, float range)
 {
-    return (angle + fmodf(ourrand(), range) - range / 2.0f) * (float) M_PI / 180.0f;
+    return (angle + fmodf(poolrand(), range) - range / 2.0f) * (float) M_PI / 180.0f;
 }
 
 // Return a random speed
 static float randspeed(unsigned int speed)
 {
-    return 0.5f + (ourrand() % speed) * 0.02f;
+    return 0.5f + (poolrand() % speed) * 0.02f;
 }
+
+/* -------------------------------------------------------------------------- */
 
 // Initialize particle system
 void init_particle_system(particle_system_t      *ps,
@@ -233,7 +266,7 @@ void create_explosion(particle_system_t *ps,
     for (i = 0; i < particle_count; i++)
     {
         // Choose a style
-        style = (force_style >= 0) ? force_style : ps->chance[ourrand() % CHANCE_BINS];
+        style = (force_style >= 0) ? force_style : ps->chance[poolrand() % CHANCE_BINS];
         create_particle(ps, style, cx, cy);
     }
 
@@ -241,12 +274,12 @@ void create_explosion(particle_system_t *ps,
     if (create_additional && ps->active_count > 0)
     {
         // Create 1-3 additional smaller explosions
-        int additional_count = 1 + (ourrand() % 3);
+        int additional_count = 1 + (poolrand() % 3);
         for (i = 0; i < additional_count; i++)
         {
             // Create explosion at random position near main explosion
-            float x = cx + (ourrand() % 100) - 50;
-            float y = cy + (ourrand() % 100) - 50;
+            float x = cx + (poolrand() % 100) - 50;
+            float y = cy + (poolrand() % 100) - 50;
 
             // Create temporary system for additional explosion
             create_explosion(ps, x, y, 30, -1, 0); // No further additional explosions
@@ -330,7 +363,7 @@ void render_particles(SDL_Renderer *renderer, particle_system_t *ps)
         // Calculate alpha from age
         age_ratio = (float) (current_time - p->created_time) / p->max_life;
         alpha = powf(age_ratio, 0.4545f) * 255.0f;
-        if (ourrand() & 1) alpha *= 2; // random flicker (50% chance)
+        if (poolrand() & 1) alpha *= 2; // random flicker (50% chance)
         if (alpha > 255) alpha = 255;
 
         // Set colour with alpha

@@ -42,7 +42,8 @@ int main(void)
     };
 
     // Frames/sec we'll allow for refresh
-    static const int fpses[] = {
+    static const int fpses[] =
+    {
         1, 2, 5, 10, 15, 30, 60, 120, 240, 480, 960
     };
 
@@ -180,7 +181,7 @@ int main(void)
                     break;
                 case SDLK_G:
                     // Disable gravity
-                    styles[0].gravity = styles[1].gravity = 0.0f;
+                    styles[0].gravity = styles[1].gravity = styles[2].gravity = 0.0f;
                     break;
                 case SDLK_Q:
                     quit = 1;
