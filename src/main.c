@@ -244,10 +244,10 @@ int main(void)
         // Frame rate control
         Uint64 end = SDL_GetPerformanceCounter();
 
-        float elapsedMS = (end - start) / (float) SDL_GetPerformanceFrequency() * 1000.0f;
-
-        // Cap to renderFPS (not PHYSICS_FPS)
-        SDL_Delay(floorf(1000.0f / (float) fpses[selectedFPS] - elapsedMS));
+        // Cap to selected FPS (not PHYSICS_FPS)
+        float elapsedMS = (end - start) / SDL_GetPerformanceFrequency() * 1000.0f;
+        float delay = 1000.0f / (float) fpses[selectedFPS] - elapsedMS;
+        SDL_Delay(delay);
     }
 
     // Cleanup
