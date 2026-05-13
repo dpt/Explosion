@@ -246,8 +246,36 @@ void update_particles(particle_system_t *ps, float dt)
         // Calculate elapsed time since particle activation (in milliseconds)
         Uint32 age = current_time - p->created_time;
 
+        // Bounce back with damping
+        if (0)
+        {
+            const float damping = 0.1f;
+
+            if (p->x < 0)
+            {
+                p->x = 0;
+                p->vx = +fabsf(p->vx) * damping;
+            }
+            if (p->x >= WIDTH)
+            {
+                p->x = WIDTH - 1;
+                p->vx = -fabsf(p->vx) * damping;
+            }
+            if (p->y < 0)
+            {
+                p->y = 0;
+                p->vy = +fabsf(p->vy) * damping;
+            }
+            if (p->y >= HEIGHT)
+            {
+                p->y = HEIGHT - 1;
+                p->vy = -fabsf(p->vy) * damping;
+            }
+        }
+
         // Check if particle should die
         if (age >= p->max_life || p->size <= 0.1f || (unsigned int) p->x >= WIDTH || (unsigned int) p->y >= HEIGHT)
+        if (age >= p->max_life || p->size <= 0.1f || (unsigned int) (int) p->x >= WIDTH || (unsigned int) (int) p->y >= HEIGHT)
         {
             p->style = 0;
             ps->free_indices[ps->free_count++] = i;  // Return index to free stack
