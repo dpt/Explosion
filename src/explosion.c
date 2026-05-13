@@ -237,7 +237,8 @@ void update_particles(particle_system_t *ps, float dt)
         p->y += p->vy * dt;
 
         // Update size decay exponentially based on delta time
-        p->size *= powf(s->size_decay, dt);
+        if (s->size_decay)
+            p->size *= powf(s->size_decay, dt);
 
         // Apply gravity based on delta time
         p->vy += s->gravity * dt;

@@ -85,9 +85,9 @@ int main(void)
     // Set render scale to 2x for pixel doubling effect
     SDL_SetRenderScale(renderer, SCALE, SCALE);
 
-    create_gradient_palette(firey, &fire_palette[0], PALETTE_SIZE);
+    create_gradient_palette(firey,  &fire_palette[0],  PALETTE_SIZE);
     create_gradient_palette(smokey, &smoke_palette[0], PALETTE_SIZE);
-    create_gradient_palette(fleck, &fleck_palette[0], PALETTE_SIZE);
+    create_gradient_palette(fleck,  &fleck_palette[0], PALETTE_SIZE);
 
     // Convert frame-based values to millisecond-based values
     // 1 frame = 1000/60 ms
@@ -104,12 +104,15 @@ int main(void)
     styles[0].emit_range  = 90.0f;  // quarter circle
 
     styles[1].probability = 8;
-    styles[1].min_life    = 120 * frame_ms;
-    styles[1].max_life    = 180 * frame_ms;
+    styles[1].emit_angle  = 270.0f; // point up
+    styles[1].emit_range  = 90.0f;
+    styles[1].min_life   *= 4;
+    styles[1].max_life   *= 4;
     styles[1].vel_scale   = 0.1f;
-    styles[1].emit_speed  = 50;
+    styles[1].emit_speed  = 10;
+    styles[1].min_size    = 1;
     styles[1].max_size    = 2;
-    styles[1].gravity     = styles[0].gravity * 0.025f; // pixels/second/second
+    styles[1].gravity    /= -100.0f; // pixels/second/second
 
     styles[2].probability = 2;
     styles[2].emit_speed  = 200;
@@ -202,7 +205,7 @@ int main(void)
                     printf("%dfps\n", fpses[selectedFPS]);
                     break;
                 default:
-                    printf("key up: %s\n", SDL_GetKeyName(e.key.key));
+                    printf("key down: %s\n", SDL_GetKeyName(e.key.key));
                     break;
                 }
                 break;
