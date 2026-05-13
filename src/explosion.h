@@ -66,26 +66,37 @@ typedef struct particle_system
 
 /* -------------------------------------------------------------------------- */
 
+/// Resets the particle system to its initial state, deactivating all particles.
 void reset_particle_system(particle_system_t *ps);
 
+/// Initialises the particle system with the given styles.
 void init_particle_system(particle_system_t      *ps,
                           const particle_style_t *styles,
                           int                     nstyles);
 
+/// Updates all active particles in the system based on the elapsed time [dt].
 void update_particles(particle_system_t *ps, float dt);
 
+/// Sets default values for a particle style.
 void set_default_style(particle_style_t *style,
                        float             frame_ms,
                        SDL_Color        *palette);
 
+/// Creates an explosion at the specified centre coordinates with the given
+/// particle count and optional forced style.
+///
+/// If force_style is -1, styles are chosen randomly based on their
+/// probabilities.
 void create_explosion(particle_system_t *ps,
                       int                cx,
                       int                cy,
                       int                particle_count,
                       int                force_style);
 
+/// Renders all active particles in the system using the provided SDL renderer.
 void render_particles(particle_system_t *ps, SDL_Renderer *renderer);
 
+/// Checks if the particle system has any active particles.
 int is_active(const particle_system_t *ps);
 
 #endif // EXPLOSION_H

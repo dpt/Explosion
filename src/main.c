@@ -177,10 +177,13 @@ int main(void)
                     break;
                 case SDLK_B:
                     // Enable alpha blending
-                    if (e.key.mod & SDL_KMOD_SHIFT) {
+                    if (e.key.mod & SDL_KMOD_SHIFT)
+                    {
                         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
                         printf("Blending disabled\n");
-                    } else {
+                    }
+                    else
+                    {
                         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
                         printf("Blending enabled\n");
                     }
