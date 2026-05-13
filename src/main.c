@@ -118,9 +118,9 @@ int main(void)
     init_particle_system(&ps, styles, NELEMS(styles));
 
     // Create initial explosion
-    create_explosion(&ps,
+    create_explosion(&ps, -1,
                      WIDTH / 2, HEIGHT / 2,
-                     NPARTICLES, -1);
+                     NPARTICLES);
 
     srand(time(NULL));
 
@@ -149,19 +149,19 @@ int main(void)
                 switch (e.button.button)
                 {
                 case 1:
-                    create_explosion(&ps,
+                    create_explosion(&ps, -1,
                                      e.button.x / SCALE, e.button.y / SCALE,
-                                     nparticles, -1);
+                                     nparticles);
                     break;
                 case 2:
-                    create_explosion(&ps,
+                    create_explosion(&ps, 0,
                                      e.button.x / SCALE, e.button.y / SCALE,
-                                     nparticles, 0);
+                                     nparticles);
                     break;
                 case 3:
-                    create_explosion(&ps,
+                    create_explosion(&ps, 2,
                                      e.button.x / SCALE, e.button.y / SCALE,
-                                     nparticles, 2);
+                                     nparticles);
                     break;
                 }
                 break;
@@ -234,9 +234,9 @@ int main(void)
 
             // Add more particles when idle
             if (!is_active(&ps))
-                create_explosion(&ps,
+                create_explosion(&ps, -1,
                                  rand() % WIDTH, rand() % HEIGHT,
-                                 NPARTICLES, -1);
+                                 NPARTICLES);
         }
 
         // Clear screen

@@ -93,13 +93,13 @@ void create_particle(particle_system_t *ps,
 /// Creates an explosion at the specified centre coordinates with the given
 /// particle count and optional forced style.
 ///
-/// If force_style is -1, styles are chosen randomly based on their
+/// If [style] is -1, styles are chosen randomly based on their
 /// probabilities.
 void create_explosion(particle_system_t *ps,
+                      int                style,
                       int                cx,
                       int                cy,
-                      int                particle_count,
-                      int                force_style);
+                      int                particle_count);
 
 /// Renders all active particles in the system using the provided SDL renderer.
 void render_particles(particle_system_t *ps, SDL_Renderer *renderer);

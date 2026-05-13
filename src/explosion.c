@@ -196,19 +196,19 @@ void create_particle(particle_system_t *ps,
 
 // Create explosion effect with additional explosions
 void create_explosion(particle_system_t *ps,
+                      int                style,
                       int                cx,
                       int                cy,
-                      int                particle_count,
-                      int                force_style)
+                      int                particle_count)
 {
     int i;
-    int style;
+    int s;
 
     for (i = 0; i < particle_count; i++)
     {
         // Choose a style
-        style = (force_style >= 0) ? force_style : ps->chance[poolrand() % CHANCE_BINS];
-        create_particle(ps, style, cx, cy);
+        s = (style >= 0) ? style : ps->chance[poolrand() % CHANCE_BINS];
+        create_particle(ps, s, cx, cy);
     }
 }
 
