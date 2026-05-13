@@ -99,7 +99,7 @@ void init_particle_system(particle_system_t      *ps,
 {
     int total;
     int i;
-    int s;
+    int style;
     int cum;
     int target;
 
@@ -112,17 +112,17 @@ void init_particle_system(particle_system_t      *ps,
         total += styles[i].probability;
 
     // Build a probabilty table for O(1) selection
-    s = 0;
-    cum = styles[s].probability;
+    style = 0;
+    cum = styles[style].probability;
     target = cum * CHANCE_BINS / total;
     for (i = 0; i < CHANCE_BINS; i++)
     {
         if (i >= target)
         {
-            cum += styles[++s].probability;
+            cum += styles[++style].probability;
             target = cum * CHANCE_BINS / total;
         }
-        ps->chance[i] = s;
+        ps->chance[i] = style;
     }
 
     reset_particle_system(ps);
@@ -202,8 +202,7 @@ void create_explosion(particle_system_t *ps,
                       int                cx,
                       int                cy,
                       int                particle_count,
-                      int                force_style,
-                      int                create_additional)
+                      int                force_style)
 {
     int i;
     int style;
@@ -213,22 +212,6 @@ void create_explosion(particle_system_t *ps,
         // Choose a style
         style = (force_style >= 0) ? force_style : ps->chance[poolrand() % CHANCE_BINS];
         create_particle(ps, style, cx, cy);
-    }
-
-    // Create additional explosions if requested
-    if (create_additional && ps->active_count > 0)
-    {
-        // Create 1-3 additional smaller explosions
-        int additional_count = 1 + (poolrand() % 3);
-        for (i = 0; i < additional_count; i++)
-        {
-            // Create explosion at random position near main explosion
-            float x = cx + (poolrand() % 100) - 50;
-            float y = cy + (poolrand() % 100) - 50;
-
-            // Create temporary system for additional explosion
-            create_explosion(ps, x, y, 30, -1, 0); // No further additional explosions
-        }
     }
 }
 

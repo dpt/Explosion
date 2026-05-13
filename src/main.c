@@ -120,8 +120,7 @@ int main(void)
     // Create initial explosion
     create_explosion(&ps,
                      WIDTH / 2, HEIGHT / 2,
-                     NPARTICLES, -1,
-                     0);
+                     NPARTICLES, -1);
 
     srand(time(NULL));
 
@@ -152,20 +151,17 @@ int main(void)
                 case 1:
                     create_explosion(&ps,
                                      e.button.x / SCALE, e.button.y / SCALE,
-                                     nparticles, -1,
-                                     1);
+                                     nparticles, -1);
                     break;
                 case 2:
                     create_explosion(&ps,
                                      e.button.x / SCALE, e.button.y / SCALE,
-                                     nparticles, 0,
-                                     0);
+                                     nparticles, 0);
                     break;
                 case 3:
                     create_explosion(&ps,
                                      e.button.x / SCALE, e.button.y / SCALE,
-                                     nparticles, 2,
-                                     0);
+                                     nparticles, 2);
                     break;
                 }
                 break;
@@ -211,8 +207,7 @@ int main(void)
             case SDL_EVENT_MOUSE_MOTION:
                 create_explosion(&ps,
                                  e.button.x / SCALE, e.button.y / SCALE,
-                                 1, 1,
-                                 0);
+                                 1, 1);
                 break;
 
             case SDL_EVENT_MOUSE_WHEEL:
@@ -238,8 +233,7 @@ int main(void)
             if (!is_active(&ps))
                 create_explosion(&ps,
                                  rand() % WIDTH, rand() % HEIGHT,
-                                 NPARTICLES, -1,
-                                 0);
+                                 NPARTICLES, -1);
         }
 
         // Clear screen

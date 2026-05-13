@@ -82,8 +82,7 @@ void create_explosion(particle_system_t *ps,
                       int                cx,
                       int                cy,
                       int                particle_count,
-                      int                force_style,
-                      int                create_additional);
+                      int                force_style);
 
 void render_particles(particle_system_t *ps, SDL_Renderer *renderer);
 
