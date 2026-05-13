@@ -236,9 +236,7 @@ int main(void)
                         vy = (float) (current_y - last_mouse_y) / dt;
                     }
                 }
-                vx *= damping;
-                vy *= damping;
-                create_particle(&ps, 1, current_x, current_y, vx, vy);
+                create_particle(&ps, 1, current_x, current_y, vx * damping, vy * damping);
                 last_mouse_x = current_x;
                 last_mouse_y = current_y;
                 last_mouse_time = start;
