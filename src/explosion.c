@@ -89,7 +89,10 @@ void reset_particle_system(particle_system_t *ps)
     for (i = 0; i < MAX_PARTICLES; i++)
         ps->particles[i].style = 0;
 
-    ps->active_count = 0;
+    // Initialize free index stack (all particles start as free)
+    for (i = 0; i < MAX_PARTICLES; i++)
+        ps->free_indices[i] = MAX_PARTICLES - 1 - i;  // Stack in reverse
+    ps->free_count = MAX_PARTICLES;
 }
 
 // Initialize particle system
@@ -159,15 +162,11 @@ static void create_particle(particle_system_t *ps,
     float                   angle;
     float                   speed;
 
-    if (ps->active_count >= MAX_PARTICLES)
+    if (ps->free_count <= 0)
         return;
 
-    // Find first inactive particle
-    for (i = 0; i < MAX_PARTICLES; i++)
-        if (ps->particles[i].style == 0)
-            break;
-    if (i == MAX_PARTICLES)
-        return;
+    // Pop from free index stack (O(1) allocation)
+    i = ps->free_indices[--ps->free_count];
 
     p = &ps->particles[i];
     s = &ps->styles[style];
@@ -193,8 +192,6 @@ static void create_particle(particle_system_t *ps,
     // Set created_time to a future time for delayed start (in milliseconds)
     float delay_ms = randrangef(0.0f, s->max_delay);
     p->created_time = SDL_GetTicks() + (Uint32)delay_ms;
-
-    ps->active_count++;
 }
 
 // Create explosion effect with additional explosions
@@ -252,7 +249,7 @@ void update_particles(particle_system_t *ps, float dt)
         if (age >= p->max_life || p->size <= 0.1f || (unsigned int) p->x >= WIDTH || (unsigned int) p->y >= HEIGHT)
         {
             p->style = 0;
-            ps->active_count--;
+            ps->free_indices[ps->free_count++] = i;  // Return index to free stack
         }
     }
 }
@@ -318,7 +315,7 @@ void render_particles(particle_system_t *ps, SDL_Renderer *renderer)
 // Check if system has active particles
 int is_active(const particle_system_t *ps)
 {
-    return ps->active_count > 0;
+    return ps->free_count < MAX_PARTICLES;
 }
 
 // vim:sw=4:sts=4:ts=8:tw=78:

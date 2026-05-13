@@ -60,8 +60,9 @@ typedef struct particle_system
 
     // state
     particle_t particles[MAX_PARTICLES];
-    int     active_count;
     char    chance[CHANCE_BINS];
+    int     free_indices[MAX_PARTICLES]; // Stack of available particle indices
+    int     free_count;                  // Number of free indices available
 } particle_system_t;
 
 /* -------------------------------------------------------------------------- */
