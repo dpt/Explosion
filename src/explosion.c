@@ -305,11 +305,19 @@ void render_particles(particle_system_t *ps, SDL_Renderer *renderer)
     // Draw the palettes
     for (s = 0; s < 3; s++)
     {
+        float t;
+
+        t = current_time / 100.0;
         for (i = 0; i < PALETTE_SIZE; i++)
         {
+            int x, y, z;
+
+            x = sinf(t + i + s) * 2.0f;
+            y = cosf(t + i + s) * 2.0f;
+            z = 3.0f + sinf(t + i + s) * 1.5f;
             c = &ps->styles[s].palette[i];
             SDL_SetRenderDrawColor(renderer, c->r, c->g, c->b, 255);
-            rect(renderer, (i + 1) * 4, 4 * (1 + s), 4);
+            rect(renderer, (i + 1) * 6 + x, 6 * (1 + s) + y, z);
         }
     }
 }
