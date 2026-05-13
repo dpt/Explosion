@@ -154,7 +154,9 @@ void set_default_style(particle_style_t *style,
 void create_particle(particle_system_t *ps,
                      int                style,
                      int                cx,
-                     int                cy)
+                     int                cy,
+                     float              vx,
+                     float              vy)
 {
     int                     i;
     particle_t             *p;
@@ -183,6 +185,10 @@ void create_particle(particle_system_t *ps,
     p->vx = cosf(angle) * speed * s->vel_scale * PHYSICS_FPS;
     p->vy = sinf(angle) * speed * s->vel_scale * PHYSICS_FPS;
 
+    // Add additional velocity offset
+    p->vx += vx;
+    p->vy += vy;
+
     // Random lifetime between min and max (in milliseconds)
     p->max_life = randrange(s->min_life, s->max_life);
 
@@ -199,6 +205,8 @@ void create_explosion(particle_system_t *ps,
                       int                style,
                       int                cx,
                       int                cy,
+                      float              vx,
+                      float              vy,
                       int                particle_count)
 {
     int i;
@@ -208,7 +216,7 @@ void create_explosion(particle_system_t *ps,
     {
         // Choose a style
         s = (style >= 0) ? style : ps->chance[poolrand() % CHANCE_BINS];
-        create_particle(ps, s, cx, cy);
+        create_particle(ps, s, cx, cy, vx, vy);
     }
 }
 
@@ -274,7 +282,6 @@ void update_particles(particle_system_t *ps, float dt)
         }
 
         // Check if particle should die
-        if (age >= p->max_life || p->size <= 0.1f || (unsigned int) p->x >= WIDTH || (unsigned int) p->y >= HEIGHT)
         if (age >= p->max_life || p->size <= 0.1f || (unsigned int) (int) p->x >= WIDTH || (unsigned int) (int) p->y >= HEIGHT)
         {
             p->style = 0;

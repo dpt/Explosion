@@ -123,6 +123,7 @@ int main(void)
     // Create initial explosion
     create_explosion(&ps, -1,
                      WIDTH / 2, HEIGHT / 2,
+                     0.0f, 0.0f,
                      NPARTICLES);
 
     srand(time(NULL));
@@ -133,6 +134,11 @@ int main(void)
     int nparticles = NPARTICLES;
     int selectedFPS = 6; /* 60fps */
     Uint64 last_physics_time = SDL_GetPerformanceCounter();
+
+    // Mouse velocity tracking
+    int last_mouse_x = -1, last_mouse_y = -1;
+    Uint64 last_mouse_time = 0;
+    float last_mouse_vx = 0.0f, last_mouse_vy = 0.0f;
 
     while (!quit)
     {
@@ -154,16 +160,19 @@ int main(void)
                 case 1:
                     create_explosion(&ps, -1,
                                      e.button.x / SCALE, e.button.y / SCALE,
+                                     last_mouse_vx, last_mouse_vy,
                                      nparticles);
                     break;
                 case 2:
                     create_explosion(&ps, 0,
                                      e.button.x / SCALE, e.button.y / SCALE,
+                                     last_mouse_vx, last_mouse_vy,
                                      nparticles);
                     break;
                 case 3:
                     create_explosion(&ps, 2,
                                      e.button.x / SCALE, e.button.y / SCALE,
+                                     last_mouse_vx, last_mouse_vy,
                                      nparticles);
                     break;
                 }
@@ -211,10 +220,32 @@ int main(void)
                 break;
 
             case SDL_EVENT_MOUSE_MOTION:
-                create_particle(&ps,
-                                1, // smoke style
-                                e.button.x / SCALE, e.button.y / SCALE);
-                break;
+            {
+                int   current_x = e.motion.x / SCALE;
+                int   current_y = e.motion.y / SCALE;
+                float vx        = 0.0f;
+                float vy        = 0.0f;
+                float damping   = 0.5f;
+
+                if (last_mouse_time != 0)
+                {
+                    float dt = (start - last_mouse_time) / (float) SDL_GetPerformanceFrequency();
+                    if (dt > 0.001f)
+                    {
+                        vx = (float) (current_x - last_mouse_x) / dt;
+                        vy = (float) (current_y - last_mouse_y) / dt;
+                    }
+                }
+                vx *= damping;
+                vy *= damping;
+                create_particle(&ps, 1, current_x, current_y, vx, vy);
+                last_mouse_x = current_x;
+                last_mouse_y = current_y;
+                last_mouse_time = start;
+                last_mouse_vx = vx;
+                last_mouse_vy = vy;
+            }
+            break;
 
             case SDL_EVENT_MOUSE_WHEEL:
                 nparticles += e.wheel.y * 10.0f;
@@ -239,6 +270,7 @@ int main(void)
             if (!is_active(&ps))
                 create_explosion(&ps, -1,
                                  rand() % WIDTH, rand() % HEIGHT,
+                                 0.0f, 0.0f,
                                  NPARTICLES);
         }
 
