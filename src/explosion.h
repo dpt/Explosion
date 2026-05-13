@@ -21,6 +21,7 @@
 #define RENDER_FPS    (30)      // FPS for screen updates
 #define PALETTE_SIZE  (8)       // num. palette entries to generate
 #define CHANCE_BINS   (16)      // number of bins to use for choosing random styles
+#define MAX_EMITTERS  (10)      // maximum emitters
 
 /* -------------------------------------------------------------------------- */
 
@@ -51,6 +52,18 @@ typedef struct particle_style
     SDL_Color *palette;
 } particle_style_t;
 
+/// An emitter that regularly outputs particles
+typedef struct emitter
+{
+    int     active;         // 1 if active, 0 if inactive
+    float   x, y;           // position
+    float   emission_rate;  // particles per second
+    int     style;          // particle style (-1 for random)
+    Uint32  lifetime;       // total lifetime in milliseconds
+    Uint32  start_time;     // SDL tick time when emitter started
+    Uint32  last_emit_time; // last time a particle was emitted
+} emitter_t;
+
 /// A particle system
 typedef struct particle_system
 {
@@ -63,7 +76,12 @@ typedef struct particle_system
     char    chance[CHANCE_BINS];
     int     free_indices[MAX_PARTICLES]; // Stack of available particle indices
     int     free_count;                  // Number of free indices available
+
+    // emitters
+    emitter_t emitters[MAX_EMITTERS];
+    int       emitter_count;             // Number of active emitters
 } particle_system_t;
+
 
 /* -------------------------------------------------------------------------- */
 
@@ -110,6 +128,20 @@ void render_particles(particle_system_t *ps, SDL_Renderer *renderer);
 
 /// Checks if the particle system has any active particles.
 int is_active(const particle_system_t *ps);
+
+/// Creates an emitter at the specified position with given parameters.
+void create_emitter(particle_system_t *ps,
+                    float              x,
+                    float              y,
+                    float              emission_rate,
+                    int                style,
+                    Uint32             lifetime);
+
+/// Updates all active emitters, potentially spawning particles.
+void update_emitters(particle_system_t *ps, Uint32 current_time);
+
+/// Deactivates an emitter by index.
+void destroy_emitter(particle_system_t *ps, int index);
 
 #endif // EXPLOSION_H
 

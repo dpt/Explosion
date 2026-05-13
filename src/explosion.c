@@ -85,17 +85,21 @@ void reset_particle_system(particle_system_t *ps)
 {
     int i;
 
-    // Initialize all particles to inactive
+    // Initialise all particles to inactive
     for (i = 0; i < MAX_PARTICLES; i++)
         ps->particles[i].style = 0;
 
-    // Initialize free index stack (all particles start as free)
+    // Initialise free index stack (all particles start as free)
     for (i = 0; i < MAX_PARTICLES; i++)
         ps->free_indices[i] = MAX_PARTICLES - 1 - i;  // Stack in reverse
     ps->free_count = MAX_PARTICLES;
+
+    // Initialise emitters
+    ps->emitter_count = 0;
+    for (i = 0; i < MAX_EMITTERS; i++)
+        ps->emitters[i].active = 0;
 }
 
-// Initialize particle system
 void init_particle_system(particle_system_t      *ps,
                           const particle_style_t *styles,
                           int                     nstyles)
@@ -131,7 +135,6 @@ void init_particle_system(particle_system_t      *ps,
     reset_particle_system(ps);
 }
 
-// Set default fire particle style
 void set_default_style(particle_style_t *style,
                        float             frame_ms,
                        SDL_Color        *palette)
@@ -150,7 +153,6 @@ void set_default_style(particle_style_t *style,
     style->palette    = palette;
 }
 
-// Create a new particle
 void create_particle(particle_system_t *ps,
                      int                style,
                      int                cx,
@@ -200,7 +202,6 @@ void create_particle(particle_system_t *ps,
     p->created_time = SDL_GetTicks() + (Uint32)delay_ms;
 }
 
-// Create explosion effect with additional explosions
 void create_explosion(particle_system_t *ps,
                       int                style,
                       int                cx,
@@ -220,7 +221,6 @@ void create_explosion(particle_system_t *ps,
     }
 }
 
-// Update particle system
 void update_particles(particle_system_t *ps, float dt)
 {
     Uint32 current_time = SDL_GetTicks();
@@ -288,6 +288,9 @@ void update_particles(particle_system_t *ps, float dt)
             ps->free_indices[ps->free_count++] = i;  // Return index to free stack
         }
     }
+
+    // Update emitters
+    update_emitters(ps, current_time);
 }
 
 // Draw a rectangle centred on (x,y)
@@ -303,7 +306,6 @@ static void rect(SDL_Renderer* renderer, int x, int y, int size)
     SDL_RenderFillRect(renderer, &rect);
 }
 
-// Render particles to SDL surface
 void render_particles(particle_system_t *ps, SDL_Renderer *renderer)
 {
     int              i;
@@ -357,10 +359,85 @@ void render_particles(particle_system_t *ps, SDL_Renderer *renderer)
     }
 }
 
-// Check if system has active particles
 int is_active(const particle_system_t *ps)
 {
     return ps->free_count < MAX_PARTICLES;
+}
+
+void create_emitter(particle_system_t *ps,
+                    float              x,
+                    float              y,
+                    float              emission_rate,
+                    int                style,
+                    Uint32             lifetime)
+{
+    emitter_t *e;
+
+    if (ps->emitter_count >= MAX_EMITTERS)
+        return;
+
+    e = &ps->emitters[ps->emitter_count++];
+    e->active         = 1;
+    e->x              = x;
+    e->y              = y;
+    e->emission_rate  = emission_rate;
+    e->style          = style;
+    e->lifetime       = lifetime;
+    e->last_emit_time = e->start_time = SDL_GetTicks();
+}
+
+void update_emitters(particle_system_t *ps, Uint32 current_time)
+{
+    int        i;
+    emitter_t *e;
+    float      dt_since_last;
+    int        nparticles;
+    int        j;
+    int        s;
+    int        new_count;
+
+    for (i = 0; i < ps->emitter_count; i++)
+    {
+        e = &ps->emitters[i];
+        if (!e->active)
+            continue;
+
+        // Check if lifetime expired (0 meaning no limit)
+        if (e->lifetime && current_time - e->start_time >= e->lifetime)
+        {
+            e->active = 0;
+            continue;
+        }
+
+        // Time since last emission in seconds
+        dt_since_last = (current_time - e->last_emit_time) / 1000.0f;
+
+        // Particles to emit
+        nparticles = (int) (e->emission_rate * dt_since_last);
+        if (nparticles > 0)
+        {
+            for (j = 0; j < nparticles; j++)
+            {
+                s = (e->style >= 0) ? e->style : ps->chance[poolrand() % CHANCE_BINS];
+                create_particle(ps, s, e->x, e->y, 0.0f, 0.0f);
+            }
+            e->last_emit_time = current_time;
+        }
+    }
+
+    // Remove inactive emitters
+    new_count = 0;
+    for (i = 0; i < ps->emitter_count; i++)
+        if (ps->emitters[i].active)
+            ps->emitters[new_count++] = ps->emitters[i];
+    ps->emitter_count = new_count;
+}
+
+void destroy_emitter(particle_system_t *ps, int index)
+{
+    if (index < 0 || index >= ps->emitter_count)
+        return;
+    ps->emitters[index].active = 0;
 }
 
 // vim:sw=4:sts=4:ts=8:tw=78:

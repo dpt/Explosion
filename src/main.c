@@ -120,11 +120,11 @@ int main(void)
     // Initialize particle system
     init_particle_system(&ps, styles, NELEMS(styles));
 
-    // Create initial explosion
-    create_explosion(&ps, -1,
-                     WIDTH / 2, HEIGHT / 2,
-                     0.0f, 0.0f,
-                     NPARTICLES);
+    // Create a smoke emitter
+    // 10 particles/sec, smoke style, indefinite lifetime
+    create_emitter(&ps,
+                   WIDTH * 1 / 5,HEIGHT * 4 / 5,
+                   10.0f, 1, 0);
 
     srand(time(NULL));
 
