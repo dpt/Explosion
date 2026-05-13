@@ -83,6 +83,13 @@ void set_default_style(particle_style_t *style,
                        float             frame_ms,
                        SDL_Color        *palette);
 
+/// Creates a single particle in the system with the specified style and initial
+/// position.
+void create_particle(particle_system_t *ps,
+                     int                style,
+                     int                cx,
+                     int                cy);
+
 /// Creates an explosion at the specified centre coordinates with the given
 /// particle count and optional forced style.
 ///

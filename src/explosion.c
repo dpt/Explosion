@@ -151,10 +151,10 @@ void set_default_style(particle_style_t *style,
 }
 
 // Create a new particle
-static void create_particle(particle_system_t *ps,
-                            int                style,
-                            int                cx,
-                            int                cy)
+void create_particle(particle_system_t *ps,
+                     int                style,
+                     int                cx,
+                     int                cy)
 {
     int                     i;
     particle_t             *p;
@@ -276,6 +276,7 @@ void render_particles(particle_system_t *ps, SDL_Renderer *renderer)
     float	         alpha;
     float            index;
     const SDL_Color *c;
+    int              s;
 
     Uint32 current_time = SDL_GetTicks();
 
@@ -301,13 +302,13 @@ void render_particles(particle_system_t *ps, SDL_Renderer *renderer)
     }
 
     // Draw the palettes
-    for (int s = 0; s < 3; s++)
+    for (s = 0; s < 3; s++)
     {
         for (i = 0; i < PALETTE_SIZE; i++)
         {
             c = &ps->styles[s].palette[i];
             SDL_SetRenderDrawColor(renderer, c->r, c->g, c->b, 255);
-            rect(renderer, (i + 1) * 4, 4 * (1+s), 4);
+            rect(renderer, (i + 1) * 4, 4 * (1 + s), 4);
         }
     }
 }

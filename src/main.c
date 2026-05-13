@@ -208,9 +208,9 @@ int main(void)
                 break;
 
             case SDL_EVENT_MOUSE_MOTION:
-                create_explosion(&ps,
-                                 e.button.x / SCALE, e.button.y / SCALE,
-                                 1, 1);
+                create_particle(&ps,
+                                1, // smoke style
+                                e.button.x / SCALE, e.button.y / SCALE);
                 break;
 
             case SDL_EVENT_MOUSE_WHEEL:
