@@ -60,13 +60,15 @@ typedef struct particle_style
 /// An particle_emitter that regularly outputs particles
 typedef struct particle_emitter
 {
-    int     active;         // 1 if active, 0 if inactive
-    float   x, y;           // position
-    float   emission_rate;  // particles per second
-    int     style;          // particle style (-1 for random)
-    Uint32  lifetime;       // total lifetime in milliseconds
-    Uint32  start_time;     // SDL tick time when particle_emitter started
-    Uint32  last_emit_time; // last time a particle was emitted
+    int     active;          // 1 if active, 0 if inactive
+    float   x, y;            // position
+    float   emission_rate;   // particles per second
+    float   emission_jitter; // emission randomness factor
+    float   emission_clump;  // emission clumping factor
+    int     style;           // particle style (-1 for random)
+    Uint32  lifetime;        // total lifetime in milliseconds
+    Uint32  start_time;      // SDL tick time when particle_emitter started
+    Uint32  last_emit_time;  // last time a particle was emitted
 } particle_emitter_t;
 
 /// A particle system
@@ -138,6 +140,8 @@ void create_emitter(particle_system_t *ps,
                     float              x,
                     float              y,
                     float              emission_rate,
+                    float              emission_jitter,
+                    float              emission_clump,
                     int                style,
                     Uint32             lifetime);
 

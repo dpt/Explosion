@@ -334,6 +334,8 @@ void create_emitter(particle_system_t *ps,
                     float              x,
                     float              y,
                     float              emission_rate,
+                    float              emission_jitter,
+                    float              emission_clump,
                     int                style,
                     Uint32             lifetime)
 {
@@ -343,24 +345,29 @@ void create_emitter(particle_system_t *ps,
         return;
 
     e = &ps->emitters[ps->emitter_count++];
-    e->active         = 1;
-    e->x              = x;
-    e->y              = y;
-    e->emission_rate  = emission_rate;
-    e->style          = style;
-    e->lifetime       = lifetime;
-    e->last_emit_time = e->start_time = SDL_GetTicks();
+    e->active          = 1;
+    e->x               = x;
+    e->y               = y;
+    e->emission_rate   = emission_rate;
+    e->emission_jitter = emission_jitter;
+    e->emission_clump  = emission_clump;
+    e->style           = style;
+    e->lifetime        = lifetime;
+    e->last_emit_time  = e->start_time = SDL_GetTicks();
 }
 
 void update_emitters(particle_system_t *ps, Uint32 current_time)
 {
-    int        i;
+    int                 i;
     particle_emitter_t *e;
-    float      dt_since_last;
-    int        nparticles;
-    int        j;
-    int        s;
-    int        new_count;
+    float               dt_since_last;
+    float               jittered_rate;
+    float               noisy_rate;
+    float               noisy_clumpy_rate;
+    int                 nparticles;
+    int                 s;
+    int                 j;
+    int                 new_count;
 
     for (i = 0; i < ps->emitter_count; i++)
     {
@@ -379,7 +386,18 @@ void update_emitters(particle_system_t *ps, Uint32 current_time)
         dt_since_last = (current_time - e->last_emit_time) / 1000.0f;
 
         // Particles to emit
-        nparticles = (int) (e->emission_rate * dt_since_last);
+        jittered_rate = e->emission_rate * e->emission_jitter;
+        noisy_rate = e->emission_rate + randrangef(ps, -jittered_rate, +jittered_rate);
+        if (e->emission_clump > 0.0f && e->emission_clump < 1.0f) {
+            if (randrangef(ps, 0.0f, 1.0f) >= e->emission_clump)
+                noisy_clumpy_rate = 0.0f;
+            else
+                noisy_clumpy_rate = noisy_rate / (1.0f - e->emission_clump);
+        } else {
+            noisy_clumpy_rate = noisy_rate;
+        }
+
+        nparticles = (int) (noisy_clumpy_rate * dt_since_last);
         if (nparticles > 0)
         {
             for (j = 0; j < nparticles; j++)

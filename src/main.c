@@ -33,6 +33,8 @@ int main(void)
     static const gradientstop_t smokey[] =
     {
         { { 191, 191, 191, 255 }, 0.0f }, // Light Grey
+        { { 127, 127, 127, 255 }, 0.1f }, // Mid Grey
+        { {  31,  31,  31, 255 }, 0.9f }, // Dark Grey
         { {   0,   0,   0, 255 }, 1.0f }, // Black
     };
 
@@ -130,10 +132,14 @@ int main(void)
 
     // Create smoke particle emitters
     // 10 particles/sec, smoke style, indefinite lifetime
-    for (i = 1; i <= 4; i++)
+    // small chance of emission, else nothing
+    for (i = 1; i < 5; i++)
         create_emitter(&ps,
-                       WIDTH * i / 5,HEIGHT * 4 / 5,
-                       10.0f, 1, 0);
+                       WIDTH * i / 5, HEIGHT * 4 / 5,
+                       10.0f,
+                       (i - 1.0f) / (4.0f - 1.0f),
+                       0.01f + (i - 1) * 0.02f,
+                       1, 0);
 
     srand(time(NULL));
 
