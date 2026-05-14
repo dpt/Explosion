@@ -12,6 +12,7 @@
 
 #include "explosion.h"
 #include "gradient.h"
+#include "random-pool.h"
 
 #define NELEMS(a) (sizeof(a) / sizeof(a[0]))
 #define CLAMP(a,min,max) ((a) < (min) ? (min) : (a) > (max) ? (max) : a)
@@ -55,10 +56,10 @@ int main(void)
     particle_system_t ps;
     SDL_Event         e;
 
-    // Initialize SDL
+    // Initialise SDL
     if (!SDL_Init(SDL_INIT_VIDEO))
     {
-        printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
+        printf("SDL could not initialise! SDL_Error: %s\n", SDL_GetError());
         return 1;
     }
 
@@ -117,8 +118,11 @@ int main(void)
     styles[2].probability = 2;
     styles[2].emit_speed  = 200;
 
-    // Initialize particle system
-    init_particle_system(&ps, styles, NELEMS(styles));
+    // Initialise random pool (4KB of random numbers)
+    globalrandpool_init(1024 * 4);
+
+    // Initialise particle system with random callback
+    init_particle_system(&ps, styles, NELEMS(styles), globalrandpool_get);
 
     // Create a smoke emitter
     // 10 particles/sec, smoke style, indefinite lifetime
@@ -292,6 +296,7 @@ int main(void)
     }
 
     // Cleanup
+    globalrandpool_cleanup();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();

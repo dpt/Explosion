@@ -20,62 +20,28 @@
 
 /* -------------------------------------------------------------------------- */
 
-// Random number pool
-//
-
-#define RAND_POOL_SIZE (1024 * 4)
-
-typedef struct
-{
-    unsigned int pool[RAND_POOL_SIZE];
-    int index;
-} rand_pool_t;
-
-static rand_pool_t g_rand_pool =
-{
-    .index = RAND_POOL_SIZE
-};
-
-// Refill the random pool from system entropy
-static void refill_rand_pool(void)
-{
-    arc4random_buf(g_rand_pool.pool, sizeof(g_rand_pool.pool));
-    g_rand_pool.index = 0;
-}
-
-// Get next random number from pool, refilling if needed
-static unsigned int poolrand(void)
-{
-    if (g_rand_pool.index >= RAND_POOL_SIZE)
-        refill_rand_pool();
-
-    return g_rand_pool.pool[g_rand_pool.index++];
-}
-
-/* -------------------------------------------------------------------------- */
-
 // Return a random value in the specified range
-static int randrange(int min, int max)
+static int randrange(const particle_system_t *ps, int min, int max)
 {
-    return min + (poolrand() % (max + 1 - min));
+    return min + (ps->randfn() % (max + 1 - min));
 }
 
 // Return a random value in the specified float range
-static float randrangef(float min, float max)
+static float randrangef(const particle_system_t *ps, float min, float max)
 {
-    return min + ((float)poolrand() / (float)UINT32_MAX) * (max - min);
+    return min + ((float)ps->randfn() / (float)UINT32_MAX) * (max - min);
 }
 
 // Return a random angle
-static float randangle(float angle, float range)
+static float randangle(const particle_system_t *ps, float angle, float range)
 {
-    return (angle + fmodf(poolrand(), range) - range / 2.0f) * (float) M_PI / 180.0f;
+    return (angle + fmodf(ps->randfn(), range) - range / 2.0f) * (float) M_PI / 180.0f;
 }
 
 // Return a random speed
-static float randspeed(unsigned int speed)
+static float randspeed(const particle_system_t *ps, unsigned int speed)
 {
-    return 0.5f + (poolrand() % speed) * 0.02f;
+    return 0.5f + (ps->randfn() % speed) * 0.02f;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -101,16 +67,18 @@ void reset_particle_system(particle_system_t *ps)
 
 void init_particle_system(particle_system_t      *ps,
                           const particle_style_t *styles,
-                          int                     nstyles)
+                          int                     nstyles,
+                          particlerand_t          randfn)
 {
     int total;
     int i;
-    int style;
+    int styleindex;
     int cum;
     int target;
 
     ps->styles  = styles;
     ps->nstyles = nstyles;
+    ps->randfn  = randfn;
 
     // Total probabilities
     total = 0;
@@ -118,17 +86,17 @@ void init_particle_system(particle_system_t      *ps,
         total += styles[i].probability;
 
     // Build a probabilty table for O(1) selection
-    style = 0;
-    cum = styles[style].probability;
+    styleindex = 0;
+    cum = styles[styleindex].probability;
     target = cum * CHANCE_BINS / total;
     for (i = 0; i < CHANCE_BINS; i++)
     {
         if (i >= target)
         {
-            cum += styles[++style].probability;
+            cum += styles[++styleindex].probability;
             target = cum * CHANCE_BINS / total;
         }
-        ps->chance[i] = style;
+        ps->chance[i] = styleindex;
     }
 
     reset_particle_system(ps);
@@ -179,8 +147,8 @@ void create_particle(particle_system_t *ps,
     p->x = cx;
     p->y = cy;
 
-    angle = randangle(s->emit_angle, s->emit_range);
-    speed = randspeed(s->emit_speed);
+    angle = randangle(ps, s->emit_angle, s->emit_range);
+    speed = randspeed(ps, s->emit_speed);
 
     // Set velocity based on angle and speed (convert to pixels/second)
     p->vx = cosf(angle) * speed * s->vel_scale * PHYSICS_FPS;
@@ -191,13 +159,13 @@ void create_particle(particle_system_t *ps,
     p->vy += vy;
 
     // Random lifetime between min and max (in milliseconds)
-    p->max_life = randrange(s->min_life, s->max_life);
+    p->max_life = randrange(ps, s->min_life, s->max_life);
 
     // Random size
-    p->size = randrange(s->min_size, s->max_size);
+    p->size = randrange(ps, s->min_size, s->max_size);
 
     // Set created_time to a future time for delayed start (in milliseconds)
-    float delay_ms = randrangef(0.0f, s->max_delay);
+    float delay_ms = randrangef(ps, 0.0f, s->max_delay);
     p->created_time = SDL_GetTicks() + (Uint32)delay_ms;
 }
 
@@ -214,8 +182,7 @@ void create_explosion(particle_system_t *ps,
 
     for (i = 0; i < particle_count; i++)
     {
-        // Choose a style
-        s = (style >= 0) ? style : ps->chance[poolrand() % CHANCE_BINS];
+        s = (style >= 0) ? style : ps->chance[ps->randfn() % CHANCE_BINS];
         create_particle(ps, s, cx, cy, vx, vy);
     }
 }
@@ -326,7 +293,7 @@ void render_particles(particle_system_t *ps, SDL_Renderer *renderer)
         // Calculate alpha from age
         age_ratio = (float) (current_time - p->created_time) / p->max_life;
         alpha = powf(age_ratio, 0.4545f) * 255.0f;
-        if (poolrand() & 1) alpha *= 2; // random flicker (50% chance)
+        if (ps->randfn() & 1) alpha *= 2; // random flicker (50% chance)
         if (alpha > 255) alpha = 255;
 
         // Set colour with alpha
@@ -417,7 +384,7 @@ void update_emitters(particle_system_t *ps, Uint32 current_time)
         {
             for (j = 0; j < nparticles; j++)
             {
-                s = (e->style >= 0) ? e->style : ps->chance[poolrand() % CHANCE_BINS];
+                s = (e->style >= 0) ? e->style : ps->chance[ps->randfn() % CHANCE_BINS];
                 create_particle(ps, s, e->x, e->y, 0.0f, 0.0f);
             }
             e->last_emit_time = current_time;

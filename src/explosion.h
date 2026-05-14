@@ -25,6 +25,11 @@
 
 /* -------------------------------------------------------------------------- */
 
+// Callback function pointer for obtaining random values
+typedef unsigned int (*particlerand_t)(void);
+
+/* -------------------------------------------------------------------------- */
+
 /// A single particle
 typedef struct particle
 {
@@ -70,28 +75,27 @@ typedef struct particle_system
     // config
     const particle_style_t *styles;
     int     nstyles;
+    particlerand_t randfn;  // Callback to obtain random values
 
     // state
     particle_t particles[MAX_PARTICLES];
     char    chance[CHANCE_BINS];
+    emitter_t emitters[MAX_EMITTERS];
+    int     emitter_count;               // Number of active emitters
     int     free_indices[MAX_PARTICLES]; // Stack of available particle indices
     int     free_count;                  // Number of free indices available
-
-    // emitters
-    emitter_t emitters[MAX_EMITTERS];
-    int       emitter_count;             // Number of active emitters
 } particle_system_t;
-
 
 /* -------------------------------------------------------------------------- */
 
 /// Resets the particle system to its initial state, deactivating all particles.
 void reset_particle_system(particle_system_t *ps);
 
-/// Initialises the particle system with the given styles.
+/// Initialises the particle system with the given styles and random callback.
 void init_particle_system(particle_system_t      *ps,
                           const particle_style_t *styles,
-                          int                     nstyles);
+                          int                     nstyles,
+                          particlerand_t          randfn);
 
 /// Updates all active particles in the system based on the elapsed time [dt].
 void update_particles(particle_system_t *ps, float dt);
