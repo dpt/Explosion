@@ -66,6 +66,7 @@ void reset_particle_system(particle_system_t *ps)
 }
 
 void init_particle_system(particle_system_t      *ps,
+                          particle_system_flags_t flags,
                           const particle_style_t *styles,
                           int                     nstyles,
                           particlerand_t          randfn)
@@ -76,6 +77,7 @@ void init_particle_system(particle_system_t      *ps,
     int cum;
     int target;
 
+    ps->flags   = flags;
     ps->styles  = styles;
     ps->nstyles = nstyles;
     ps->randfn  = randfn;
@@ -221,7 +223,7 @@ void update_particles(particle_system_t *ps, float dt)
         Uint32 age = current_time - p->created_time;
 
         // Bounce back with damping
-        if (0)
+        if (ps->flags & PARTICLE_FLAG_WALLS)
         {
             const float damping = 0.1f;
 
@@ -388,12 +390,15 @@ void update_emitters(particle_system_t *ps, Uint32 current_time)
         // Particles to emit
         jittered_rate = e->emission_rate * e->emission_jitter;
         noisy_rate = e->emission_rate + randrangef(ps, -jittered_rate, +jittered_rate);
-        if (e->emission_clump > 0.0f && e->emission_clump < 1.0f) {
+        if (e->emission_clump > 0.0f && e->emission_clump < 1.0f)
+        {
             if (randrangef(ps, 0.0f, 1.0f) >= e->emission_clump)
                 noisy_clumpy_rate = 0.0f;
             else
                 noisy_clumpy_rate = noisy_rate / (1.0f - e->emission_clump);
-        } else {
+        }
+        else
+        {
             noisy_clumpy_rate = noisy_rate;
         }
 

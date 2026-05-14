@@ -125,7 +125,11 @@ int main(void)
     globalrandpool_init(1024 * 4);
 
     // Initialise particle system with random callback
-    init_particle_system(&ps, styles, NELEMS(styles), globalrandpool_get);
+    init_particle_system(&ps,
+                         0,
+                         styles,
+                         NELEMS(styles),
+                         globalrandpool_get);
 
     // Create smoke particle emitters
     // 10 particles/sec, smoke style, indefinite lifetime
@@ -215,6 +219,11 @@ int main(void)
                 case SDLK_G:
                     // Disable gravity
                     styles[0].gravity = styles[1].gravity = styles[2].gravity = 0.0f;
+                    break;
+                case SDLK_W:
+                    // Toggle walls
+                    ps.flags ^= PARTICLE_FLAG_WALLS;
+                    printf("Walls %s\n", (ps.flags & PARTICLE_FLAG_WALLS) ? "enabled" : "disabled");
                     break;
                 case SDLK_Q:
                     quit = 1;

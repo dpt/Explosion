@@ -12,8 +12,8 @@
 //
 
 #define SCALE         (4)       // screen scale
-#define WIDTH         (320)     // screen width (pixels)
-#define HEIGHT        (256)     // screen height (pixels)
+#define WIDTH         (256)     // screen width (pixels)
+#define HEIGHT        (192)     // screen height (pixels)
 #define MAX_PARTICLES (1000)    // maximum particles
 #define NPARTICLES    (MAX_PARTICLES / 2) // num. particles to spawn on clicks
 #define GRAVITY       (0.075f)  // default gravity
@@ -78,10 +78,15 @@ typedef struct particle_emitter
     Uint32  last_emit_time;  // last time a particle was emitted
 } particle_emitter_t;
 
+typedef unsigned int particle_system_flags_t;
+
+#define PARTICLE_FLAG_WALLS (1 << 0) // particles bounce off walls
+
 /// A particle system
 typedef struct particle_system
 {
     // config
+    particle_system_flags_t flags;
     const particle_style_t *styles;
     int     nstyles;
     particlerand_t randfn;  // Callback to obtain random values
@@ -102,6 +107,7 @@ void reset_particle_system(particle_system_t *ps);
 
 /// Initialises the particle system with the given styles and random callback.
 void init_particle_system(particle_system_t      *ps,
+                          particle_system_flags_t flags,
                           const particle_style_t *styles,
                           int                     nstyles,
                           particlerand_t          randfn);
