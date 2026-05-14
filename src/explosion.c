@@ -279,8 +279,8 @@ void render_particles(particle_system_t *ps, SDL_Renderer *renderer)
     int              i;
     particle_t      *p;
     float            age_ratio;
-    float	         alpha;
-    float            index;
+    unsigned int     twinkle;
+    int              index;
     const SDL_Color *c;
     int              s;
 
@@ -292,16 +292,17 @@ void render_particles(particle_system_t *ps, SDL_Renderer *renderer)
         if (p->style == 0 || current_time < p->created_time)
             continue;
 
-        // Calculate alpha from age
+        // Calculate age and twinkling
         age_ratio = (float) (current_time - p->created_time) / p->max_life;
-        alpha = powf(age_ratio, 0.4545f) * 255.0f;
-        if (ps->randfn() & 1) alpha *= 2; // random flicker (50% chance)
-        if (alpha > 255) alpha = 255;
 
-        // Set colour with alpha
-        index = CLAMP(age_ratio * PALETTE_SIZE, 0, PALETTE_SIZE - 1); // age_ratio can be 1.0
-        c = &ps->styles[p->style - 1].palette[(int) index];
-        SDL_SetRenderDrawColor(renderer, c->r, c->g, c->b, (Uint8)alpha);
+        // Map age to palette index
+        index   = age_ratio * PALETTE_SIZE;
+        twinkle = (ps->randfn() & 0xFF) == 0;
+        index   = CLAMP(twinkle ? 0 : index, 0, PALETTE_SIZE - 1); // age_ratio can be 1.0
+
+        // Set colour from palette
+        c = &ps->styles[p->style - 1].palette[index];
+        SDL_SetRenderDrawColor(renderer, c->r, c->g, c->b, 255);
 
         // Draw
         rect(renderer, p->x, p->y, ceilf(p->size));

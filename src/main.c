@@ -29,8 +29,8 @@ int main(void)
 
     static const gradientstop_t smokey[] =
     {
-        { { 191, 191, 191, 255 }, 0.0f }, // Light Grey
-        { { 127, 127, 127, 255 }, 0.1f }, // Mid Grey
+        { { 255, 154,   0, 255 }, 0.0f }, // Orange
+        { { 127, 127, 127, 255 }, 0.4f }, // Mid Grey
         { {  31,  31,  31, 255 }, 0.9f }, // Dark Grey
         { {   0,   0,   0, 255 }, 1.0f }, // Black
     };
@@ -202,19 +202,6 @@ int main(void)
                     break;
                 case SDLK_DELETE:
                     reset_particle_system(&ps);
-                    break;
-                case SDLK_B:
-                    // Enable alpha blending
-                    if (e.key.mod & SDL_KMOD_SHIFT)
-                    {
-                        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
-                        printf("Blending disabled\n");
-                    }
-                    else
-                    {
-                        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-                        printf("Blending enabled\n");
-                    }
                     break;
                 case SDLK_G:
                     // Disable gravity
