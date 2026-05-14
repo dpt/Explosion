@@ -17,7 +17,7 @@ static SDL_Color interpolate_colour(SDL_Color a, SDL_Color b, float t)
     result.r = (Uint8)(a.r + (b.r - a.r) * t);
     result.g = (Uint8)(a.g + (b.g - a.g) * t);
     result.b = (Uint8)(a.b + (b.b - a.b) * t);
-    result.a = 255; // Opaque
+    result.a = (Uint8)(a.a + (b.a - a.a) * t);
     return result;
 }
 
