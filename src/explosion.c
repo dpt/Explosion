@@ -7,7 +7,6 @@
 // - Particle spin
 // - Explosion types - add/improve
 // - Cascades (particles randomly trigger more bursts)
-// - Emitters (emit particles just by existing)
 //
 
 #include <math.h>
@@ -282,7 +281,7 @@ void update_particles(particle_system_t *ps, float dt)
         }
 
         // Check if particle should die
-        if (age >= p->max_life || p->size <= 0.1f || (unsigned int) (int) p->x >= WIDTH || (unsigned int) (int) p->y >= HEIGHT)
+        if (age >= p->max_life || p->size < 0.5f || (unsigned int) (int) p->x >= WIDTH || (unsigned int) (int) p->y >= HEIGHT)
         {
             p->style = 0;
             ps->free_indices[ps->free_count++] = i;  // Return index to free stack
@@ -336,7 +335,7 @@ void render_particles(particle_system_t *ps, SDL_Renderer *renderer)
         SDL_SetRenderDrawColor(renderer, c->r, c->g, c->b, (Uint8)alpha);
 
         // Draw
-        rect(renderer, p->x, p->y, p->size);
+        rect(renderer, p->x, p->y, ceilf(p->size));
     }
 
     // Draw the palettes
