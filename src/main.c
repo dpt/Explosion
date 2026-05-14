@@ -38,8 +38,11 @@ int main(void)
 
     static const gradientstop_t fleck[] =
     {
-        { {   0, 255,   0, 255 }, 0.0f }, // Green
+        { { 255, 255, 255, 255 }, 0.0f }, // White
+        { { 255, 255,   0, 255 }, 0.2f }, // Yellow
+        { {   0, 255,   0, 255 }, 0.3f }, // Green
         { {   0, 127,   0, 255 }, 0.5f }, // Dark Green
+        { {   0,   0, 127, 255 }, 0.9f }, // Dark Blue
         { {   0,   0,   0, 255 }, 1.0f }, // Black
     };
 
@@ -55,6 +58,7 @@ int main(void)
     particle_style_t  styles[3];
     particle_system_t ps;
     SDL_Event         e;
+    int               i;
 
     // Initialise SDL
     if (!SDL_Init(SDL_INIT_VIDEO))
@@ -124,11 +128,12 @@ int main(void)
     // Initialise particle system with random callback
     init_particle_system(&ps, styles, NELEMS(styles), globalrandpool_get);
 
-    // Create a smoke particle_emitter
+    // Create smoke particle emitters
     // 10 particles/sec, smoke style, indefinite lifetime
-    create_emitter(&ps,
-                   WIDTH * 1 / 5,HEIGHT * 4 / 5,
-                   10.0f, 1, 0);
+    for (i = 1; i <= 4; i++)
+        create_emitter(&ps,
+                       WIDTH * i / 5,HEIGHT * 4 / 5,
+                       10.0f, 1, 0);
 
     srand(time(NULL));
 
