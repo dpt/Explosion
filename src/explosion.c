@@ -297,7 +297,7 @@ void render_particles(particle_system_t *ps, SDL_Renderer *renderer)
         if (alpha > 255) alpha = 255;
 
         // Set colour with alpha
-        index = age_ratio * PALETTE_SIZE;
+        index = CLAMP(age_ratio * PALETTE_SIZE, 0, PALETTE_SIZE - 1); // age_ratio can be 1.0
         c = &ps->styles[p->style - 1].palette[(int) index];
         SDL_SetRenderDrawColor(renderer, c->r, c->g, c->b, (Uint8)alpha);
 

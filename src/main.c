@@ -14,9 +14,6 @@
 #include "gradient.h"
 #include "random-pool.h"
 
-#define NELEMS(a) (sizeof(a) / sizeof(a[0]))
-#define CLAMP(a,min,max) ((a) < (min) ? (min) : (a) > (max) ? (max) : a)
-
 int main(void)
 {
     // Define colour stops

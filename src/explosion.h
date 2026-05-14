@@ -18,10 +18,17 @@
 #define NPARTICLES    (MAX_PARTICLES / 2) // num. particles to spawn on clicks
 #define GRAVITY       (0.075f)  // default gravity
 #define PHYSICS_FPS   (60)      // FPS for physics (affects values)
-#define RENDER_FPS    (30)      // FPS for screen updates
 #define PALETTE_SIZE  (8)       // num. palette entries to generate
 #define CHANCE_BINS   (16)      // number of bins to use for choosing random styles
 #define MAX_EMITTERS  (10)      // maximum emitters
+
+/* -------------------------------------------------------------------------- */
+
+// Common macros
+//
+
+#define NELEMS(a) (sizeof(a) / sizeof(a[0]))
+#define CLAMP(a,min,max) ((a) < (min) ? (min) : (a) > (max) ? (max) : a)
 
 /* -------------------------------------------------------------------------- */
 
