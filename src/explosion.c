@@ -337,7 +337,7 @@ void create_emitter(particle_system_t *ps,
                     int                style,
                     Uint32             lifetime)
 {
-    emitter_t *e;
+    particle_emitter_t *e;
 
     if (ps->emitter_count >= MAX_EMITTERS)
         return;
@@ -355,7 +355,7 @@ void create_emitter(particle_system_t *ps,
 void update_emitters(particle_system_t *ps, Uint32 current_time)
 {
     int        i;
-    emitter_t *e;
+    particle_emitter_t *e;
     float      dt_since_last;
     int        nparticles;
     int        j;

@@ -124,7 +124,7 @@ int main(void)
     // Initialise particle system with random callback
     init_particle_system(&ps, styles, NELEMS(styles), globalrandpool_get);
 
-    // Create a smoke emitter
+    // Create a smoke particle_emitter
     // 10 particles/sec, smoke style, indefinite lifetime
     create_emitter(&ps,
                    WIDTH * 1 / 5,HEIGHT * 4 / 5,

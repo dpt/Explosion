@@ -12,8 +12,8 @@
 //
 
 #define SCALE         (4)       // screen scale
-#define WIDTH         (256)     // screen width (pixels)
-#define HEIGHT        (192)     // screen height (pixels)
+#define WIDTH         (320)     // screen width (pixels)
+#define HEIGHT        (256)     // screen height (pixels)
 #define MAX_PARTICLES (1000)    // maximum particles
 #define NPARTICLES    (MAX_PARTICLES / 2) // num. particles to spawn on clicks
 #define GRAVITY       (0.075f)  // default gravity
@@ -57,17 +57,17 @@ typedef struct particle_style
     SDL_Color *palette;
 } particle_style_t;
 
-/// An emitter that regularly outputs particles
-typedef struct emitter
+/// An particle_emitter that regularly outputs particles
+typedef struct particle_emitter
 {
     int     active;         // 1 if active, 0 if inactive
     float   x, y;           // position
     float   emission_rate;  // particles per second
     int     style;          // particle style (-1 for random)
     Uint32  lifetime;       // total lifetime in milliseconds
-    Uint32  start_time;     // SDL tick time when emitter started
+    Uint32  start_time;     // SDL tick time when particle_emitter started
     Uint32  last_emit_time; // last time a particle was emitted
-} emitter_t;
+} particle_emitter_t;
 
 /// A particle system
 typedef struct particle_system
@@ -80,7 +80,7 @@ typedef struct particle_system
     // state
     particle_t particles[MAX_PARTICLES];
     char    chance[CHANCE_BINS];
-    emitter_t emitters[MAX_EMITTERS];
+    particle_emitter_t emitters[MAX_EMITTERS];
     int     emitter_count;               // Number of active emitters
     int     free_indices[MAX_PARTICLES]; // Stack of available particle indices
     int     free_count;                  // Number of free indices available
@@ -133,7 +133,7 @@ void render_particles(particle_system_t *ps, SDL_Renderer *renderer);
 /// Checks if the particle system has any active particles.
 int is_active(const particle_system_t *ps);
 
-/// Creates an emitter at the specified position with given parameters.
+/// Creates an particle_emitter at the specified position with given parameters.
 void create_emitter(particle_system_t *ps,
                     float              x,
                     float              y,
@@ -144,7 +144,7 @@ void create_emitter(particle_system_t *ps,
 /// Updates all active emitters, potentially spawning particles.
 void update_emitters(particle_system_t *ps, Uint32 current_time);
 
-/// Deactivates an emitter by index.
+/// Deactivates an particle_emitter by index.
 void destroy_emitter(particle_system_t *ps, int index);
 
 #endif // EXPLOSION_H
