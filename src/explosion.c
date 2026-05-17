@@ -63,6 +63,11 @@ void reset_particle_system(particle_system_t *ps)
     ps->emitter_count = 0;
     for (i = 0; i < MAX_EMITTERS; i++)
         ps->emitters[i].active = 0;
+
+    // Initialise repellers
+    ps->repeller_count = 0;
+    for (i = 0; i < MAX_EMITTERS; i++)
+        ps->repellers[i].active = 0;
 }
 
 void init_particle_system(particle_system_t      *ps,
@@ -260,6 +265,9 @@ void update_particles(particle_system_t *ps, float dt)
 
     // Update emitters
     update_emitters(ps, current_time);
+
+    // Update repellers
+    update_repellers(ps, current_time);
 }
 
 // Draw a rectangle centred on (x,y)
@@ -429,6 +437,92 @@ void destroy_emitter(particle_system_t *ps, int index)
     if (index < 0 || index >= ps->emitter_count)
         return;
     ps->emitters[index].active = 0;
+}
+
+void create_repeller(particle_system_t *ps,
+                     float              x,
+                     float              y,
+                     float              strength,
+                     float              max_distance)
+{
+    particle_repeller_t *r;
+
+    if (ps->repeller_count >= MAX_EMITTERS)
+        return;
+
+    r = &ps->repellers[ps->repeller_count++];
+    r->active       = 1;
+    r->x            = x;
+    r->y            = y;
+    r->strength     = strength;
+    r->max_distance = max_distance;
+}
+
+void update_repellers(particle_system_t *ps, Uint32 current_time)
+{
+    int i, j;
+    particle_repeller_t *r;
+    particle_t *p;
+    float dx, dy, distance, force, force_x, force_y;
+
+    for (i = 0; i < ps->repeller_count; i++)
+    {
+        r = &ps->repellers[i];
+        if (!r->active)
+            continue;
+
+        for (j = 0; j < MAX_PARTICLES; j++)
+        {
+            p = &ps->particles[j];
+
+            // Skip inactive particles
+            if (p->style == 0)
+                continue;
+
+            // Skip particles that haven't started yet
+            if (current_time < p->created_time)
+                continue;
+
+            // Calculate distance from repeller to particle
+            dx = p->x - r->x;
+            dy = p->y - r->y;
+            distance = sqrtf(dx * dx + dy * dy);
+
+            // Skip if particle is too far from repeller
+            if (r->max_distance > 0.0f && distance > r->max_distance)
+                continue;
+
+            // Skip if particle is at the same position as repeller
+            if (distance < 0.1f)
+                continue;
+
+            // Calculate repelling force (inverse square law)
+            // Force decreases with distance
+            force = r->strength / (distance * distance);
+
+            // Normalize direction vector
+            force_x = dx / distance * force;
+            force_y = dy / distance * force;
+
+            // Apply force to particle velocity (push away from repeller)
+            p->vx += force_x;
+            p->vy += force_y;
+        }
+    }
+
+    // Remove inactive repellers
+    int new_count = 0;
+    for (i = 0; i < ps->repeller_count; i++)
+        if (ps->repellers[i].active)
+            ps->repellers[new_count++] = ps->repellers[i];
+    ps->repeller_count = new_count;
+}
+
+void destroy_repeller(particle_system_t *ps, int index)
+{
+    if (index < 0 || index >= ps->repeller_count)
+        return;
+    ps->repellers[index].active = 0;
 }
 
 // vim:sw=4:sts=4:ts=8:tw=78:

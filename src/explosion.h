@@ -78,6 +78,15 @@ typedef struct particle_emitter
     Uint32  last_emit_time;  // last time a particle was emitted
 } particle_emitter_t;
 
+/// A particle_repeller that pushes particles away from its position
+typedef struct particle_repeller
+{
+    int     active;          // 1 if active, 0 if inactive
+    float   x, y;            // position
+    float   strength;        // repelling strength (higher = stronger repulsion)
+    float   max_distance;    // maximum distance for repulsion effect (0 = infinite)
+} particle_repeller_t;
+
 typedef unsigned int particle_system_flags_t;
 
 #define PARTICLE_FLAG_WALLS (1 << 0) // particles bounce off walls
@@ -98,6 +107,8 @@ typedef struct particle_system
     char    chance[CHANCE_BINS];
     particle_emitter_t emitters[MAX_EMITTERS];
     int     emitter_count;               // Number of active emitters
+    particle_repeller_t repellers[MAX_EMITTERS];
+    int     repeller_count;              // Number of active repellers
     int     free_indices[MAX_PARTICLES]; // Stack of available particle indices
     int     free_count;                  // Number of free indices available
 } particle_system_t;
@@ -166,6 +177,19 @@ void update_emitters(particle_system_t *ps, Uint32 current_time);
 
 /// Deactivates an particle_emitter by index.
 void destroy_emitter(particle_system_t *ps, int index);
+
+/// Creates a particle_repeller at the specified position with given parameters.
+void create_repeller(particle_system_t *ps,
+                     float              x,
+                     float              y,
+                     float              strength,
+                     float              max_distance);
+
+/// Updates all active repellers, applying repelling forces to particles.
+void update_repellers(particle_system_t *ps, Uint32 current_time);
+
+/// Deactivates a particle_repeller by index.
+void destroy_repeller(particle_system_t *ps, int index);
 
 #endif // EXPLOSION_H
 

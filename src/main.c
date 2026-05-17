@@ -143,6 +143,12 @@ int main(void)
                        0.01f + (i - 1) * 0.02f,
                        1, 0);
 
+    // Create a repeller at the center of the screen with moderate strength
+    create_repeller(&ps,
+                    WIDTH / 2, HEIGHT / 2,
+                    100.0f,
+                    100.0f);
+
     srand(time(NULL));
 
     // Game loop
