@@ -81,6 +81,7 @@ typedef struct particle_emitter
 typedef unsigned int particle_system_flags_t;
 
 #define PARTICLE_FLAG_WALLS (1 << 0) // particles bounce off walls
+#define PARTICLE_FLAG_NO_GRAVITY (1 << 1) // particles are not affected by gravity
 
 /// A particle system
 typedef struct particle_system

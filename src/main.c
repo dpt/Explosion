@@ -204,8 +204,9 @@ int main(void)
                     reset_particle_system(&ps);
                     break;
                 case SDLK_G:
-                    // Disable gravity
-                    styles[0].gravity = styles[1].gravity = styles[2].gravity = 0.0f;
+                    // Toggle gravity
+                    ps.flags ^= PARTICLE_FLAG_NO_GRAVITY;
+                    printf("Gravity %s\n", (ps.flags & PARTICLE_FLAG_NO_GRAVITY) ? "disabled" : "enabled");
                     break;
                 case SDLK_W:
                     // Toggle walls

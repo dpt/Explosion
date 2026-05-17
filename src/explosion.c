@@ -216,8 +216,9 @@ void update_particles(particle_system_t *ps, float dt)
         if (s->size_decay)
             p->size *= powf(s->size_decay, dt);
 
-        // Apply gravity based on delta time
-        p->vy += s->gravity * dt;
+        if ((ps->flags & PARTICLE_FLAG_NO_GRAVITY) == 0)
+            // Apply gravity based on delta time
+            p->vy += s->gravity * dt;
 
         // Calculate elapsed time since particle activation (in milliseconds)
         Uint32 age = current_time - p->created_time;
