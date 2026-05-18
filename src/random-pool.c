@@ -67,7 +67,7 @@ unsigned int randpool_get(rand_pool_t *rp, int nbits)
     bits_to_extract = (nbits > bits_available) ? bits_available : nbits;
 
     // Extract the bits
-    mask = (1U << bits_to_extract) - 1;
+    mask = (bits_to_extract == 32) ? 0xFFFFFFFFu : (1U << bits_to_extract) - 1;
     result = (rp->pool[rp->index] >> rp->bit_index) & mask;
 
     // Update bit index
