@@ -483,9 +483,13 @@ void update_repellers(particle_system_t *ps, Uint32 current_time)
             if (current_time < p->created_time)
                 continue;
 
-            // Calculate distance from repeller to particle
+            // AABB check: quick rejection if particle is outside bounding box
             dx = p->x - r->x;
             dy = p->y - r->y;
+            if (r->max_distance > 0.0f && (fabsf(dx) > r->max_distance || fabsf(dy) > r->max_distance))
+                continue;
+
+            // Calculate actual distance only if AABB check passes
             distance = sqrtf(dx * dx + dy * dy);
 
             // Skip if particle is too far from repeller
