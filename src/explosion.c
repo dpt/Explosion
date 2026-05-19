@@ -69,7 +69,8 @@ void init_particle_system(particle_system_t      *ps,
                           particle_system_flags_t flags,
                           const particle_style_t *styles,
                           int                     nstyles,
-                          particlerand_t          randfn)
+                          particlerand_t          randfn,
+                          float                   wall_damping)
 {
     int total;
     int i;
@@ -77,10 +78,11 @@ void init_particle_system(particle_system_t      *ps,
     int cum;
     int target;
 
-    ps->flags   = flags;
-    ps->styles  = styles;
-    ps->nstyles = nstyles;
-    ps->randfn  = randfn;
+    ps->flags        = flags;
+    ps->styles       = styles;
+    ps->nstyles      = nstyles;
+    ps->randfn       = randfn;
+    ps->wall_damping = wall_damping;
 
     // Total probabilities
     total = 0;
@@ -226,27 +228,25 @@ void update_particles(particle_system_t *ps, float dt)
         // Bounce back with damping
         if (ps->flags & PARTICLE_FLAG_WALLS)
         {
-            const float damping = 0.1f;
-
             if (p->x < 0)
             {
                 p->x = 0;
-                p->vx = +fabsf(p->vx) * damping;
+                p->vx = +fabsf(p->vx) * ps->wall_damping;
             }
             if (p->x >= WIDTH)
             {
                 p->x = WIDTH - 1;
-                p->vx = -fabsf(p->vx) * damping;
+                p->vx = -fabsf(p->vx) * ps->wall_damping;
             }
             if (p->y < 0)
             {
                 p->y = 0;
-                p->vy = +fabsf(p->vy) * damping;
+                p->vy = +fabsf(p->vy) * ps->wall_damping;
             }
             if (p->y >= HEIGHT)
             {
                 p->y = HEIGHT - 1;
-                p->vy = -fabsf(p->vy) * damping;
+                p->vy = -fabsf(p->vy) * ps->wall_damping;
             }
         }
 

@@ -129,7 +129,8 @@ int main(void)
                          0,
                          styles,
                          NELEMS(styles),
-                         globalrandpool_get);
+                         globalrandpool_get,
+                         0.2f);
 
     // Create smoke particle emitters
     // 10 particles/sec, smoke style, indefinite lifetime

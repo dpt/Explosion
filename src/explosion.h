@@ -91,6 +91,7 @@ typedef struct particle_system
     const particle_style_t *styles;
     int     nstyles;
     particlerand_t randfn;  // Callback to obtain random values
+    float   wall_damping;
 
     // state
     particle_t particles[MAX_PARTICLES];
@@ -111,7 +112,8 @@ void init_particle_system(particle_system_t      *ps,
                           particle_system_flags_t flags,
                           const particle_style_t *styles,
                           int                     nstyles,
-                          particlerand_t          randfn);
+                          particlerand_t          randfn,
+                          float                   wall_damping);
 
 /// Updates all active particles in the system based on the elapsed time [dt].
 void update_particles(particle_system_t *ps, float dt);
