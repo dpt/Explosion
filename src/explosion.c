@@ -256,7 +256,10 @@ void update_particles(particle_system_t *ps, float dt)
         }
 
         // Check if particle should die
-        if (age >= p->max_life || p->size < 0.5f || (unsigned int) (int) p->x >= WIDTH || (unsigned int) (int) p->y >= HEIGHT)
+        if (age >= p->max_life ||
+            p->size < 0.5f ||
+            p->x < 0.0f || p->x >= WIDTH ||
+            p->y < 0.0f || p->y >= HEIGHT)
         {
             p->style = 0;
             ps->free_indices[ps->free_count++] = i;  // Return index to free stack
