@@ -23,25 +23,25 @@
 // Return a random value in the specified range
 static int randrange(const particle_system_t *ps, int min, int max)
 {
-    return min + (ps->randfn() % (max + 1 - min));
+    return min + (ps->randfn(32) % (max + 1 - min));
 }
 
 // Return a random value in the specified float range
 static float randrangef(const particle_system_t *ps, float min, float max)
 {
-    return min + ((float)ps->randfn() / (float)UINT32_MAX) * (max - min);
+    return min + ((float) ps->randfn(32) / (float) UINT32_MAX) * (max - min);
 }
 
 // Return a random angle
 static float randangle(const particle_system_t *ps, float angle, float range)
 {
-    return (angle + fmodf(ps->randfn(), range) - range / 2.0f) * (float) M_PI / 180.0f;
+    return (angle + fmodf(ps->randfn(32), range) - range / 2.0f) * (float) M_PI / 180.0f;
 }
 
 // Return a random speed
 static float randspeed(const particle_system_t *ps, unsigned int speed)
 {
-    return 0.5f + (ps->randfn() % speed) * 0.02f;
+    return 0.5f + (ps->randfn(32) % speed) * 0.02f;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -191,7 +191,7 @@ void create_explosion(particle_system_t *ps,
 
     for (i = 0; i < particle_count; i++)
     {
-        s = (style >= 0) ? style : ps->chance[ps->randfn() % CHANCE_BINS];
+        s = (style >= 0) ? style : ps->chance[ps->randfn(4) % CHANCE_BINS];
         create_particle(ps, s, cx, cy, vx, vy);
     }
 }
@@ -306,7 +306,7 @@ void render_particles(particle_system_t *ps, SDL_Renderer *renderer)
 
         // Map age to palette index
         index   = age_ratio * PALETTE_SIZE;
-        twinkle = (ps->randfn() & 0xFF) == 0;
+        twinkle = (ps->randfn(8) == 0);
         index   = CLAMP(twinkle ? 0 : index, 0, PALETTE_SIZE - 1); // age_ratio can be 1.0
 
         // Set colour from palette
@@ -417,7 +417,7 @@ void update_emitters(particle_system_t *ps, Uint32 current_time)
         {
             for (j = 0; j < nparticles; j++)
             {
-                s = (e->style >= 0) ? e->style : ps->chance[ps->randfn() % CHANCE_BINS];
+                s = (e->style >= 0) ? e->style : ps->chance[ps->randfn(4) % CHANCE_BINS];
                 create_particle(ps, s, e->x, e->y, 0.0f, 0.0f);
             }
             e->last_emit_time = current_time;

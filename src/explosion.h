@@ -33,7 +33,7 @@
 /* -------------------------------------------------------------------------- */
 
 // Callback function pointer for obtaining random values
-typedef unsigned int (*particlerand_t)(void);
+typedef unsigned int (*particlerand_t)(int nbits);
 
 /* -------------------------------------------------------------------------- */
 
