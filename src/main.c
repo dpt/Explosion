@@ -25,12 +25,88 @@
 
 /* -------------------------------------------------------------------------- */
 
+// Define colour stops
+//
+
+static const gradientstop_t firey[] =
+{
+    { { 255, 255, 255, 255 }, 0.0f }, // White
+    { { 255, 232,   8, 255 }, 0.1f }, // Yellow
+    { { 255, 206,   0, 255 }, 0.2f }, // Yellow-Orange
+    { { 255, 154,   0, 255 }, 0.5f }, // Orange
+    { { 255,  90,   0, 255 }, 0.6f }, // Red
+    { {   0,   0, 127, 255 }, 1.0f }, // Dark Blue
+};
+
+static const gradientstop_t smokey[] =
+{
+    { { 255, 154,   0, 255 }, 0.0f }, // Orange
+    { { 127, 127, 127, 255 }, 0.4f }, // Mid Grey
+    { {  31,  31,  31, 255 }, 0.9f }, // Dark Grey
+    { {   0,   0,   0, 255 }, 1.0f }, // Black
+};
+
+static const gradientstop_t fleck[] =
+{
+    { { 255, 255, 255, 255 }, 0.0f }, // White
+    { { 255, 255,   0, 255 }, 0.2f }, // Yellow
+    { {   0, 255,   0, 255 }, 0.3f }, // Green
+    { {   0, 127,   0, 255 }, 0.5f }, // Dark Green
+    { {   0,   0, 127, 255 }, 0.9f }, // Dark Blue
+    { {   0,   0,   0, 255 }, 1.0f }, // Black
+};
+
+/* -------------------------------------------------------------------------- */
+
 typedef struct State
 {
-    SDL_Renderer   *renderer;
-    SDL_Color       palettes[PALETTE_SIZE * MAX_STYLES];
-    rand_pool_t     randpool;
+    particle_system_t ps;
+    rand_pool_t       randpool;
+    SDL_Renderer     *renderer;
+    SDL_Color         palettes[PALETTE_SIZE * MAX_STYLES];
 } State;
+
+/* -------------------------------------------------------------------------- */
+
+/// Render a filled rectangle centered on (x,y) with dimensions (w,h).
+static void rectfill(int x, int y, int w, int h, const SDL_Color *colour, SDL_Renderer *renderer)
+{
+    SDL_FRect rect;
+
+    rect.x = x - w / 2.0f;
+    rect.y = y - h / 2.0f;
+    rect.w = w;
+    rect.h = h;
+
+    SDL_SetRenderDrawColor(renderer, colour->r, colour->g, colour->b, colour->a);
+    SDL_RenderFillRect(renderer, &rect);
+}
+
+/// Render a filled square centred on (x,y) with dimensions (size,size).
+static void squarefill(int x, int y, int size, const SDL_Color *colour, SDL_Renderer *renderer)
+{
+    rectfill(x, y, size, size, colour, renderer);
+}
+
+/// Render an unfilled rectangle centered on (x,y) with dimensions (w,h).
+static void rect(int x, int y, int w, int h, const SDL_Color *colour, SDL_Renderer *renderer)
+{
+    SDL_FRect rect;
+
+    rect.x = x - w / 2.0f;
+    rect.y = y - h / 2.0f;
+    rect.w = w;
+    rect.h = h;
+
+    SDL_SetRenderDrawColor(renderer, colour->r, colour->g, colour->b, colour->a);
+    SDL_RenderRect(renderer, &rect);
+}
+
+/// Render an unfilled square centred on (x,y) with dimensions (size,size).
+static void square(int x, int y, int size, const SDL_Color *colour, SDL_Renderer *renderer)
+{
+    rect(x, y, size, size, colour, renderer);
+}
 
 /* -------------------------------------------------------------------------- */
 
@@ -50,19 +126,8 @@ static unsigned int get_ticks_callback(void)
 // Render callback for particles
 static void render_particle_callback(int x, int y, int size, int palette_index, void *opaque)
 {
-    State    *state = opaque;
-    SDL_FRect rect;
-    SDL_Color *colour;
-
-    rect.x = x - size / 2.0f;
-    rect.y = y - size / 2.0f;
-    rect.w = size;
-    rect.h = size;
-
-    colour = &state->palettes[palette_index];
-
-    SDL_SetRenderDrawColor(state->renderer, colour->r, colour->g, colour->b, 255);
-    SDL_RenderFillRect(state->renderer, &rect);
+    State *state = opaque;
+    squarefill(x, y, size, &state->palettes[palette_index], state->renderer);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -91,39 +156,33 @@ static void render_palettes(State *state)
         }
 }
 
+// Renders other things
+static void render_others(State *state)
+{
+    static const SDL_Color repeller = { 255, 0, 0, 255 };
+    static const SDL_Color attractor = { 0, 0, 255, 255 };
+
+    int i;
+
+    for (i = 0; i < state->ps.emitter_count; i++)
+    {
+        particle_emitter_t *e = &state->ps.emitters[i];
+        if (e->active)
+            square(e->x, e->y, 3, &smokey[0].colour, state->renderer);
+    }
+
+    for (i = 0; i < state->ps.repeller_count; i++)
+    {
+        particle_repeller_t *r = &state->ps.repellers[i];
+        if (r->active && r->strength != 0.0f)
+            square(r->x, r->y, r->max_distance * 2, (r->strength >= 0) ? &repeller : &attractor, state->renderer);
+    }
+}
+
 /* -------------------------------------------------------------------------- */
 
 int main(void)
 {
-    // Define colour stops
-    static const gradientstop_t firey[] =
-    {
-        { { 255, 255, 255, 255 }, 0.0f }, // White
-        { { 255, 232,   8, 255 }, 0.1f }, // Yellow
-        { { 255, 206,   0, 255 }, 0.2f }, // Yellow-Orange
-        { { 255, 154,   0, 255 }, 0.5f }, // Orange
-        { { 255,  90,   0, 255 }, 0.6f }, // Red
-        { {   0,   0, 127, 255 }, 1.0f }, // Dark Blue
-    };
-
-    static const gradientstop_t smokey[] =
-    {
-        { { 255, 154,   0, 255 }, 0.0f }, // Orange
-        { { 127, 127, 127, 255 }, 0.4f }, // Mid Grey
-        { {  31,  31,  31, 255 }, 0.9f }, // Dark Grey
-        { {   0,   0,   0, 255 }, 1.0f }, // Black
-    };
-
-    static const gradientstop_t fleck[] =
-    {
-        { { 255, 255, 255, 255 }, 0.0f }, // White
-        { { 255, 255,   0, 255 }, 0.2f }, // Yellow
-        { {   0, 255,   0, 255 }, 0.3f }, // Green
-        { {   0, 127,   0, 255 }, 0.5f }, // Dark Green
-        { {   0,   0, 127, 255 }, 0.9f }, // Dark Blue
-        { {   0,   0,   0, 255 }, 1.0f }, // Black
-    };
-
     // Frames/sec we'll allow for refresh
     static const int fpses[] =
     {
@@ -132,7 +191,6 @@ int main(void)
 
     State            *state;
     particle_style_t  styles[3];
-    particle_system_t ps;
     SDL_Event         e;
     int               i;
 
@@ -210,7 +268,7 @@ int main(void)
     SDL_SetRenderScale(state->renderer, SCALE, SCALE);
 
     // Initialise particle system with callbacks
-    init_particle_system(&ps,
+    init_particle_system(&state->ps,
                          0,
                          styles,
                          NELEMS(styles),
@@ -224,18 +282,24 @@ int main(void)
     // 10 particles/sec, smoke style, indefinite lifetime
     // small chance of emission, else nothing
     for (i = 1; i < 5; i++)
-        create_emitter(&ps,
+        create_emitter(&state->ps,
                        WIDTH * i / 5, HEIGHT * 4 / 5,
                        10.0f,
                        (i - 1.0f) / (4.0f - 1.0f),
                        0.01f + (i - 1) * 0.02f,
                        1, 0);
 
-    // Create a repeller at the center of the screen with moderate strength
-    create_repeller(&ps,
-                    WIDTH / 2, HEIGHT / 2,
+    // Create a repeller at the centre left of the screen with moderate strength
+    create_repeller(&state->ps,
+                    WIDTH * 1 / 3, HEIGHT / 2,
                     100.0f,
-                    100.0f);
+                    5.0f);
+
+    // Create an attractor at the centre right of the screen with moderate strength
+    create_repeller(&state->ps,
+                    WIDTH * 2 / 3, HEIGHT / 2,
+                    -100.0f,
+                    5.0f);
 
     // We only use rand() in main.c
     srand(time(NULL));
@@ -270,19 +334,19 @@ int main(void)
                 switch (e.button.button)
                 {
                 case 1:
-                    create_explosion(&ps, -1,
+                    create_explosion(&state->ps, -1,
                                      e.button.x / SCALE, e.button.y / SCALE,
                                      last_mouse_vx, last_mouse_vy,
                                      nparticles);
                     break;
                 case 2:
-                    create_explosion(&ps, 0,
+                    create_explosion(&state->ps, 0,
                                      e.button.x / SCALE, e.button.y / SCALE,
                                      last_mouse_vx, last_mouse_vy,
                                      nparticles);
                     break;
                 case 3:
-                    create_explosion(&ps, 2,
+                    create_explosion(&state->ps, 2,
                                      e.button.x / SCALE, e.button.y / SCALE,
                                      last_mouse_vx, last_mouse_vy,
                                      nparticles);
@@ -297,17 +361,17 @@ int main(void)
                     pause = !pause;
                     break;
                 case SDLK_DELETE:
-                    reset_particle_system(&ps);
+                    reset_particle_system(&state->ps);
                     break;
                 case SDLK_G:
                     // Toggle gravity
-                    ps.flags ^= PARTICLE_FLAG_NO_GRAVITY;
-                    printf("Gravity %s\n", (ps.flags & PARTICLE_FLAG_NO_GRAVITY) ? "disabled" : "enabled");
+                    state->ps.flags ^= PARTICLE_FLAG_NO_GRAVITY;
+                    printf("Gravity %s\n", (state->ps.flags & PARTICLE_FLAG_NO_GRAVITY) ? "disabled" : "enabled");
                     break;
                 case SDLK_W:
                     // Toggle walls
-                    ps.flags ^= PARTICLE_FLAG_WALLS;
-                    printf("Walls %s\n", (ps.flags & PARTICLE_FLAG_WALLS) ? "enabled" : "disabled");
+                    state->ps.flags ^= PARTICLE_FLAG_WALLS;
+                    printf("Walls %s\n", (state->ps.flags & PARTICLE_FLAG_WALLS) ? "enabled" : "disabled");
                     break;
                 case SDLK_Q:
                     quit = 1;
@@ -341,7 +405,7 @@ int main(void)
                         vy = (float) (current_y - last_mouse_y) / dt;
                     }
                 }
-                create_particle(&ps, 1, current_x, current_y, vx * damping, vy * damping);
+                create_particle(&state->ps, 1, current_x, current_y, vx * damping, vy * damping);
                 last_mouse_x = current_x;
                 last_mouse_y = current_y;
                 last_mouse_time = start;
@@ -367,11 +431,11 @@ int main(void)
             Uint64 current_physics_time = SDL_GetPerformanceCounter();
             float dt = (current_physics_time - last_physics_time) / (float) SDL_GetPerformanceFrequency();
             last_physics_time = current_physics_time;
-            update_particles(&ps, dt);
+            update_particles(&state->ps, dt);
 
             // Add more particles when idle
-            if (!is_active(&ps))
-                create_explosion(&ps, -1,
+            if (!is_active(&state->ps))
+                create_explosion(&state->ps, -1,
                                  rand() % WIDTH, rand() % HEIGHT,
                                  0.0f, 0.0f,
                                  NPARTICLES);
@@ -381,11 +445,12 @@ int main(void)
         SDL_SetRenderDrawColor(state->renderer, 0, 0, 0, 255);
         SDL_RenderClear(state->renderer);
 
-        // Render particles
-        render_particles(&ps);
-
-        // Draw the palettes
+        // Draw the palettes and that
         render_palettes(state);
+        render_others(state);
+
+        // Render particles
+        render_particles(&state->ps);
 
         // Update screen
         SDL_RenderPresent(state->renderer);
