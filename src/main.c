@@ -14,6 +14,85 @@
 #include "gradient.h"
 #include "random-pool.h"
 
+/* -------------------------------------------------------------------------- */
+
+// Config
+//
+
+#define SCALE         (4)       // screen scale
+#define MAX_STYLES    (3)
+#define NPARTICLES    (MAX_PARTICLES / 2) // num. particles to spawn on clicks
+
+/* -------------------------------------------------------------------------- */
+
+typedef struct State
+{
+    SDL_Renderer   *renderer;
+    SDL_Color       palettes[PALETTE_SIZE * MAX_STYLES];
+    rand_pool_t     randpool;
+} State;
+
+/* -------------------------------------------------------------------------- */
+
+// Random value callback
+static unsigned int rand_callback(int nbits, void *opaque)
+{
+    State *state = opaque;
+    return randpool_get(&state->randpool, nbits);
+}
+
+// Time callback
+static unsigned int get_ticks_callback(void)
+{
+    return SDL_GetTicks();
+}
+
+// Render callback for particles
+static void render_particle_callback(int x, int y, int size, int palette_index, void *opaque)
+{
+    State    *state = opaque;
+    SDL_FRect rect;
+    SDL_Color *colour;
+
+    rect.x = x - size / 2.0f;
+    rect.y = y - size / 2.0f;
+    rect.w = size;
+    rect.h = size;
+
+    colour = &state->palettes[palette_index];
+
+    SDL_SetRenderDrawColor(state->renderer, colour->r, colour->g, colour->b, 255);
+    SDL_RenderFillRect(state->renderer, &rect);
+}
+
+/* -------------------------------------------------------------------------- */
+
+// Renders dancing palette
+static void render_palettes(State *state)
+{
+    float t;
+    int   pi;
+    int   p;
+    int   i;
+    float s,c;
+
+    t  = SDL_GetTicks() / 100.0;
+    pi = 0;
+    for (p = 0; p < MAX_STYLES; p++)
+        for (i = 0; i < PALETTE_SIZE; i++)
+        {
+            s = sinf(t + p + i);
+            c = cosf(t + p + i);
+            render_particle_callback((i + 1) * 6 + s * 2.0f,
+                                     (p + 1) * 6 + c * 2.0f,
+                                     3.0f + s * 1.5f,
+                                     pi++,
+                                     state);
+        }
+}
+
+/* -------------------------------------------------------------------------- */
+
 int main(void)
 {
     // Define colour stops
@@ -51,13 +130,54 @@ int main(void)
         1, 2, 5, 10, 15, 30, 60, 120, 240, 480, 960
     };
 
-    SDL_Color         fire_palette[PALETTE_SIZE];
-    SDL_Color         smoke_palette[PALETTE_SIZE];
-    SDL_Color         fleck_palette[PALETTE_SIZE];
+    State            *state;
     particle_style_t  styles[3];
     particle_system_t ps;
     SDL_Event         e;
     int               i;
+
+    state = calloc(1, sizeof(*state));
+    if (state == NULL)
+    {
+        printf("Out of memory\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Initialise random pool (4KB of random numbers)
+    randpool_init(&state->randpool, 1024 * 4);
+
+    create_gradient_palette(firey,  &state->palettes[PALETTE_SIZE * 0], PALETTE_SIZE);
+    create_gradient_palette(smokey, &state->palettes[PALETTE_SIZE * 1], PALETTE_SIZE);
+    create_gradient_palette(fleck,  &state->palettes[PALETTE_SIZE * 2], PALETTE_SIZE);
+
+    // Convert frame-based values to millisecond-based values
+    // 1 frame = 1000/60 ms
+    float frame_ms = 1000.0f / PHYSICS_FPS;
+
+    // Set default styles
+    set_default_style(&styles[0], frame_ms);
+    styles[0].probability = 90;
+    styles[0].palette_index = 0;  // Fire palette
+    styles[0].emit_angle  = 270.0f; // point up
+    styles[0].emit_range  = 90.0f;  // quarter circle
+
+    set_default_style(&styles[1], frame_ms);
+    styles[1].probability = 8;
+    styles[1].palette_index = 1;  // Smoke palette
+    styles[1].emit_angle  = 270.0f; // point up
+    styles[1].emit_range  = 90.0f;
+    styles[1].min_life   *= 4;
+    styles[1].max_life   *= 4;
+    styles[1].vel_scale   = 0.1f;
+    styles[1].emit_speed  = 10;
+    styles[1].min_size    = 1;
+    styles[1].max_size    = 2;
+    styles[1].gravity    /= -100.0f; // pixels/second/second
+
+    set_default_style(&styles[2], frame_ms);
+    styles[2].probability = 2;
+    styles[2].palette_index = 2;  // Fleck palette
+    styles[2].emit_speed  = 200;
 
     // Initialise SDL
     if (!SDL_Init(SDL_INIT_VIDEO))
@@ -77,8 +197,8 @@ int main(void)
     }
 
     // Create renderer
-    SDL_Renderer *renderer = SDL_CreateRenderer(window, NULL);
-    if (renderer == NULL)
+    state->renderer = SDL_CreateRenderer(window, NULL);
+    if (state->renderer == NULL)
     {
         printf("Renderer could not be created! SDL_Error: %s\n", SDL_GetError());
         SDL_DestroyWindow(window);
@@ -87,50 +207,18 @@ int main(void)
     }
 
     // Set render scale to 2x for pixel doubling effect
-    SDL_SetRenderScale(renderer, SCALE, SCALE);
+    SDL_SetRenderScale(state->renderer, SCALE, SCALE);
 
-    create_gradient_palette(firey,  &fire_palette[0],  PALETTE_SIZE);
-    create_gradient_palette(smokey, &smoke_palette[0], PALETTE_SIZE);
-    create_gradient_palette(fleck,  &fleck_palette[0], PALETTE_SIZE);
-
-    // Convert frame-based values to millisecond-based values
-    // 1 frame = 1000/60 ms
-    float frame_ms = 1000.0f / PHYSICS_FPS;
-
-    // Set default styles
-    set_default_style(&styles[0], frame_ms, fire_palette);
-    set_default_style(&styles[1], frame_ms, smoke_palette);
-    set_default_style(&styles[2], frame_ms, fleck_palette);
-
-    // Set differences from defaults
-    styles[0].probability = 90;
-    styles[0].emit_angle  = 270.0f; // point up
-    styles[0].emit_range  = 90.0f;  // quarter circle
-
-    styles[1].probability = 8;
-    styles[1].emit_angle  = 270.0f; // point up
-    styles[1].emit_range  = 90.0f;
-    styles[1].min_life   *= 4;
-    styles[1].max_life   *= 4;
-    styles[1].vel_scale   = 0.1f;
-    styles[1].emit_speed  = 10;
-    styles[1].min_size    = 1;
-    styles[1].max_size    = 2;
-    styles[1].gravity    /= -100.0f; // pixels/second/second
-
-    styles[2].probability = 2;
-    styles[2].emit_speed  = 200;
-
-    // Initialise random pool (4KB of random numbers)
-    globalrandpool_init(1024 * 4);
-
-    // Initialise particle system with random callback
+    // Initialise particle system with callbacks
     init_particle_system(&ps,
                          0,
                          styles,
                          NELEMS(styles),
-                         globalrandpool_get,
-                         0.2f);
+                         0.2f,
+                         rand_callback,
+                         get_ticks_callback,
+                         render_particle_callback,
+                         state);
 
     // Create smoke particle emitters
     // 10 particles/sec, smoke style, indefinite lifetime
@@ -149,6 +237,7 @@ int main(void)
                     100.0f,
                     100.0f);
 
+    // We only use rand() in main.c
     srand(time(NULL));
 
     // Game loop
@@ -289,14 +378,17 @@ int main(void)
         }
 
         // Clear screen
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer);
+        SDL_SetRenderDrawColor(state->renderer, 0, 0, 0, 255);
+        SDL_RenderClear(state->renderer);
 
         // Render particles
-        render_particles(&ps, renderer);
+        render_particles(&ps);
+
+        // Draw the palettes
+        render_palettes(state);
 
         // Update screen
-        SDL_RenderPresent(renderer);
+        SDL_RenderPresent(state->renderer);
 
         // Frame rate control
         Uint64 end = SDL_GetPerformanceCounter();
@@ -308,10 +400,10 @@ int main(void)
     }
 
     // Cleanup
-    globalrandpool_cleanup();
-    SDL_DestroyRenderer(renderer);
+    SDL_DestroyRenderer(state->renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
+    free(state);
 
     return 0;
 }

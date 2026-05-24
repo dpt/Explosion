@@ -24,12 +24,6 @@ unsigned int randpool_get(rand_pool_t *rp, int nbits);
 
 /* -------------------------------------------------------------------------- */
 
-void globalrandpool_init(int pool_size);
-void globalrandpool_cleanup(void);
-unsigned int globalrandpool_get(int nbits);
-
-/* -------------------------------------------------------------------------- */
-
 #endif // RANDOM_POOL_H
 
 // vim:sw=4:sts=4:ts=8:tw=78:

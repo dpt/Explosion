@@ -51,7 +51,8 @@ unsigned int randpool_get(rand_pool_t *rp, int nbits)
     unsigned int remaining_bits;
     unsigned int more_bits;
 
-    if (nbits <= 0 || nbits > 32) {
+    if (nbits <= 0 || nbits > 32)
+    {
         assert(0);
         return 0;
     }
@@ -74,13 +75,15 @@ unsigned int randpool_get(rand_pool_t *rp, int nbits)
     rp->bit_index += bits_to_extract;
 
     // If we used all bits in current uint32_t, advance to next
-    if (rp->bit_index >= 32) {
+    if (rp->bit_index >= 32)
+    {
         rp->bit_index = 0;
         rp->index++;
     }
 
     // If we need more bits and there aren't enough in current uint32_t, get more
-    if (nbits > bits_to_extract) {
+    if (nbits > bits_to_extract)
+    {
         remaining_bits = nbits - bits_to_extract;
         more_bits = randpool_get(rp, remaining_bits);
         result |= (more_bits << bits_to_extract);

@@ -12,8 +12,6 @@
 #include <math.h>
 #include <stdlib.h>
 
-#include <SDL3/SDL.h>
-
 #include "explosion.h"
 
 #include <assert.h>
@@ -23,25 +21,25 @@
 // Return a random value in the specified range
 static int randrange(const particle_system_t *ps, int min, int max)
 {
-    return min + (ps->randfn(32) % (max + 1 - min));
+    return min + (ps->rand_cb(32, ps->opaque) % (max + 1 - min));
 }
 
 // Return a random value in the specified float range
 static float randrangef(const particle_system_t *ps, float min, float max)
 {
-    return min + ((float) ps->randfn(32) / (float) UINT32_MAX) * (max - min);
+    return min + ((float) ps->rand_cb(32, ps->opaque) / (float) UINT32_MAX) * (max - min);
 }
 
 // Return a random angle
 static float randangle(const particle_system_t *ps, float angle, float range)
 {
-    return (angle + fmodf(ps->randfn(32), range) - range / 2.0f) * (float) M_PI / 180.0f;
+    return (angle + fmodf(ps->rand_cb(32, ps->opaque), range) - range / 2.0f) * (float) M_PI / 180.0f;
 }
 
 // Return a random speed
 static float randspeed(const particle_system_t *ps, unsigned int speed)
 {
-    return 0.5f + (ps->randfn(32) % speed) * 0.02f;
+    return 0.5f + (ps->rand_cb(32, ps->opaque) % speed) * 0.02f;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -74,8 +72,11 @@ void init_particle_system(particle_system_t      *ps,
                           particle_system_flags_t flags,
                           const particle_style_t *styles,
                           int                     nstyles,
-                          particlerand_t          randfn,
-                          float                   wall_damping)
+                          float                   wall_damping,
+                          particle_rand_t         rand_fn,
+                          particle_time_t         time_fn,
+                          particle_render_t       render_fn,
+                          void                   *opaque)
 {
     int total;
     int i;
@@ -86,8 +87,11 @@ void init_particle_system(particle_system_t      *ps,
     ps->flags        = flags;
     ps->styles       = styles;
     ps->nstyles      = nstyles;
-    ps->randfn       = randfn;
+    ps->rand_cb      = rand_fn;
+    ps->time_cb      = time_fn;
+    ps->render_cb    = render_fn;
     ps->wall_damping = wall_damping;
+    ps->opaque       = opaque;
 
     // Total probabilities
     total = 0;
@@ -111,22 +115,20 @@ void init_particle_system(particle_system_t      *ps,
     reset_particle_system(ps);
 }
 
-void set_default_style(particle_style_t *style,
-                       float             frame_ms,
-                       SDL_Color        *palette)
+void set_default_style(particle_style_t *style, float frame_ms)
 {
-    style->min_life   = 30 * frame_ms;
-    style->max_life   = 90 * frame_ms;
-    style->vel_scale  = 1.0f;
-    style->emit_angle = 0.0f; // point right
-    style->emit_range = 360.0f;  // full circle
-    style->emit_speed = 100;
-    style->min_size   = 1;
-    style->max_size   = 3;
-    style->max_delay  = frame_ms; // milliseconds
-    style->gravity    = GRAVITY * PHYSICS_FPS * PHYSICS_FPS; // pixels/second/second
-    style->size_decay = powf(0.999f, PHYSICS_FPS); // per-second decay factor
-    style->palette    = palette;
+    style->min_life      = 30 * frame_ms;
+    style->max_life      = 90 * frame_ms;
+    style->vel_scale     = 1.0f;
+    style->emit_angle    = 0.0f; // point right
+    style->emit_range    = 360.0f; // full circle
+    style->emit_speed    = 100;
+    style->min_size      = 1;
+    style->max_size      = 3;
+    style->max_delay     = frame_ms; // milliseconds
+    style->gravity       = GRAVITY * PHYSICS_FPS * PHYSICS_FPS; // pixels/second/second
+    style->size_decay    = powf(0.999f, PHYSICS_FPS); // per-second decay factor
+    style->palette_index = 0;
 }
 
 void create_particle(particle_system_t *ps,
@@ -175,7 +177,7 @@ void create_particle(particle_system_t *ps,
 
     // Set created_time to a future time for delayed start (in milliseconds)
     float delay_ms = randrangef(ps, 0.0f, s->max_delay);
-    p->created_time = SDL_GetTicks() + (Uint32)delay_ms;
+    p->created_time = ps->time_cb() + (unsigned int)delay_ms;
 }
 
 void create_explosion(particle_system_t *ps,
@@ -191,14 +193,14 @@ void create_explosion(particle_system_t *ps,
 
     for (i = 0; i < particle_count; i++)
     {
-        s = (style >= 0) ? style : ps->chance[ps->randfn(4) % CHANCE_BINS];
+        s = (style >= 0) ? style : ps->chance[ps->rand_cb(4, ps->opaque) % CHANCE_BINS];
         create_particle(ps, s, cx, cy, vx, vy);
     }
 }
 
 void update_particles(particle_system_t *ps, float dt)
 {
-    Uint32 current_time = SDL_GetTicks();
+    unsigned int current_time = ps->time_cb();
 
     for (int i = 0; i < MAX_PARTICLES; i++)
     {
@@ -228,7 +230,7 @@ void update_particles(particle_system_t *ps, float dt)
             p->vy += s->gravity * dt;
 
         // Calculate elapsed time since particle activation (in milliseconds)
-        Uint32 age = current_time - p->created_time;
+        unsigned int age = current_time - p->created_time;
 
         // Bounce back with damping
         if (ps->flags & PARTICLE_FLAG_WALLS)
@@ -257,9 +259,9 @@ void update_particles(particle_system_t *ps, float dt)
 
         // Check if particle should die
         if (age >= p->max_life ||
-            p->size < 0.5f ||
-            p->x < 0.0f || p->x >= WIDTH ||
-            p->y < 0.0f || p->y >= HEIGHT)
+                p->size < 0.5f ||
+                p->x < 0.0f || p->x >= WIDTH ||
+                p->y < 0.0f || p->y >= HEIGHT)
         {
             p->style = 0;
             ps->free_indices[ps->free_count++] = i;  // Return index to free stack
@@ -273,30 +275,16 @@ void update_particles(particle_system_t *ps, float dt)
     update_repellers(ps, current_time);
 }
 
-// Draw a rectangle centred on (x,y)
-static void rect(SDL_Renderer* renderer, int x, int y, int size)
+void render_particles(particle_system_t *ps)
 {
-    SDL_FRect rect;
+    int           i;
+    particle_t   *p;
+    float         age_ratio;
+    unsigned int  twinkle;
+    int           palette_offset;
+    int           colour_index;
 
-    rect.x = x - size / 2.0f;
-    rect.y = y - size / 2.0f;
-    rect.w = size;
-    rect.h = size;
-
-    SDL_RenderFillRect(renderer, &rect);
-}
-
-void render_particles(particle_system_t *ps, SDL_Renderer *renderer)
-{
-    int              i;
-    particle_t      *p;
-    float            age_ratio;
-    unsigned int     twinkle;
-    int              index;
-    const SDL_Color *c;
-    int              s;
-
-    Uint32 current_time = SDL_GetTicks();
+    unsigned int current_time = ps->time_cb();
 
     for (i = 0; i < MAX_PARTICLES; i++)
     {
@@ -308,35 +296,15 @@ void render_particles(particle_system_t *ps, SDL_Renderer *renderer)
         age_ratio = (float) (current_time - p->created_time) / p->max_life;
 
         // Map age to palette index
-        index   = age_ratio * PALETTE_SIZE;
-        twinkle = (ps->randfn(8) == 0);
-        index   = CLAMP(twinkle ? 0 : index, 0, PALETTE_SIZE - 1); // age_ratio can be 1.0
+        colour_index = (int) (age_ratio * PALETTE_SIZE);
+        twinkle = (ps->rand_cb(8, ps->opaque) == 0);
+        colour_index = CLAMP(twinkle ? 0 : colour_index, 0, PALETTE_SIZE - 1);
 
-        // Set colour from palette
-        c = &ps->styles[p->style - 1].palette[index];
-        SDL_SetRenderDrawColor(renderer, c->r, c->g, c->b, 255);
+        // Get colour from palette
+        palette_offset = ps->styles[p->style - 1].palette_index * PALETTE_SIZE + colour_index;
 
-        // Draw
-        rect(renderer, p->x, p->y, ceilf(p->size));
-    }
-
-    // Draw the palettes
-    for (s = 0; s < 3; s++)
-    {
-        float t;
-
-        t = current_time / 100.0;
-        for (i = 0; i < PALETTE_SIZE; i++)
-        {
-            int x, y, z;
-
-            x = sinf(t + i + s) * 2.0f;
-            y = cosf(t + i + s) * 2.0f;
-            z = 3.0f + sinf(t + i + s) * 1.5f;
-            c = &ps->styles[s].palette[i];
-            SDL_SetRenderDrawColor(renderer, c->r, c->g, c->b, 255);
-            rect(renderer, (i + 1) * 6 + x, 6 * (1 + s) + y, z);
-        }
+        // Render through callback
+        ps->render_cb((int) p->x, (int) p->y, (int) ceilf(p->size), palette_offset, ps->opaque);
     }
 }
 
@@ -345,6 +313,8 @@ int is_active(const particle_system_t *ps)
     return ps->free_count < MAX_PARTICLES;
 }
 
+/* -------------------------------------------------------------------------- */
+
 void create_emitter(particle_system_t *ps,
                     float              x,
                     float              y,
@@ -352,7 +322,7 @@ void create_emitter(particle_system_t *ps,
                     float              emission_jitter,
                     float              emission_clump,
                     int                style,
-                    Uint32             lifetime)
+                    unsigned int       lifetime)
 {
     particle_emitter_t *e;
 
@@ -368,10 +338,10 @@ void create_emitter(particle_system_t *ps,
     e->emission_clump  = emission_clump;
     e->style           = style;
     e->lifetime        = lifetime;
-    e->last_emit_time  = e->start_time = SDL_GetTicks();
+    e->last_emit_time  = e->start_time = ps->time_cb();
 }
 
-void update_emitters(particle_system_t *ps, Uint32 current_time)
+void update_emitters(particle_system_t *ps, unsigned int current_time)
 {
     int                 i;
     particle_emitter_t *e;
@@ -420,7 +390,7 @@ void update_emitters(particle_system_t *ps, Uint32 current_time)
         {
             for (j = 0; j < nparticles; j++)
             {
-                s = (e->style >= 0) ? e->style : ps->chance[ps->randfn(4) % CHANCE_BINS];
+                s = (e->style >= 0) ? e->style : ps->chance[ps->rand_cb(4, ps->opaque) % CHANCE_BINS];
                 create_particle(ps, s, e->x, e->y, 0.0f, 0.0f);
             }
             e->last_emit_time = current_time;
@@ -442,6 +412,8 @@ void destroy_emitter(particle_system_t *ps, int index)
     ps->emitters[index].active = 0;
 }
 
+/* -------------------------------------------------------------------------- */
+
 void create_repeller(particle_system_t *ps,
                      float              x,
                      float              y,
@@ -461,7 +433,7 @@ void create_repeller(particle_system_t *ps,
     r->max_distance = max_distance;
 }
 
-void update_repellers(particle_system_t *ps, Uint32 current_time)
+void update_repellers(particle_system_t *ps, unsigned int current_time)
 {
     int i, j;
     particle_repeller_t *r;
@@ -531,5 +503,7 @@ void destroy_repeller(particle_system_t *ps, int index)
         return;
     ps->repellers[index].active = 0;
 }
+
+/* -------------------------------------------------------------------------- */
 
 // vim:sw=4:sts=4:ts=8:tw=78:
