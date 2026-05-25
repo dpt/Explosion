@@ -19,9 +19,9 @@
 // Config
 //
 
-#define SCALE         (4)       // screen scale
-#define MAX_STYLES    (3)
-#define NPARTICLES    (MAX_PARTICLES / 2) // num. particles to spawn on clicks
+#define SCALE       (4) // screen scale
+#define MAX_STYLES  (4)
+#define NPARTICLES  (MAX_PARTICLES / 2) // num. particles to spawn on clicks
 
 /* -------------------------------------------------------------------------- */
 
@@ -56,15 +56,13 @@ static const gradientstop_t fleck[] =
     { {   0,   0,   0, 255 }, 1.0f }, // Black
 };
 
-/* -------------------------------------------------------------------------- */
-
-typedef struct State
+static const gradientstop_t pastel[] =
 {
-    particle_system_t ps;
-    rand_pool_t       randpool;
-    SDL_Renderer     *renderer;
-    SDL_Color         palettes[PALETTE_SIZE * MAX_STYLES];
-} State;
+    { { 251, 243, 185 }, 0.0f }, // Lemon
+    { { 255, 220, 204 }, 0.3f }, // Peach
+    { { 253, 183, 234 }, 0.7f }, // Pink
+    { { 183, 177, 242 }, 1.0f }, // Mauve
+};
 
 /* -------------------------------------------------------------------------- */
 
@@ -110,6 +108,16 @@ static void square(int x, int y, int size, const SDL_Color *colour, SDL_Renderer
 
 /* -------------------------------------------------------------------------- */
 
+typedef struct State
+{
+    particle_system_t ps;
+    rand_pool_t       randpool;
+    SDL_Renderer     *renderer;
+    SDL_Color         palettes[PALETTE_SIZE * MAX_STYLES];
+} State;
+
+/* -------------------------------------------------------------------------- */
+
 // Random value callback
 static unsigned int rand_callback(int nbits, void *opaque)
 {
@@ -141,16 +149,16 @@ static void render_palettes(State *state)
     int   i;
     float s,c;
 
-    t  = SDL_GetTicks() / 100.0;
+    t  = SDL_GetTicks() / PHYSICS_FPS;
     pi = 0;
     for (p = 0; p < MAX_STYLES; p++)
         for (i = 0; i < PALETTE_SIZE; i++)
         {
-            s = sinf(t + p + i);
-            c = cosf(t + p + i);
-            render_particle_callback((i + 1) * 6 + s * 2.0f,
-                                     (p + 1) * 6 + c * 2.0f,
-                                     3.0f + s * 1.5f,
+            s = sinf(t / 2.0f + p + i) * 2.0f;
+            c = cosf(t / 2.0f + p + i) * 2.0f;
+            render_particle_callback((i + 1) * 4 + s,
+                                     (p + 1) * 5 + c,
+                                     3.0f + s * 0.75f,
                                      pi++,
                                      state);
         }
@@ -190,7 +198,7 @@ int main(void)
     };
 
     State            *state;
-    particle_style_t  styles[3];
+    particle_style_t  styles[MAX_STYLES];
     SDL_Event         e;
     int               i;
 
@@ -207,6 +215,7 @@ int main(void)
     create_gradient_palette(firey,  &state->palettes[PALETTE_SIZE * 0], PALETTE_SIZE);
     create_gradient_palette(smokey, &state->palettes[PALETTE_SIZE * 1], PALETTE_SIZE);
     create_gradient_palette(fleck,  &state->palettes[PALETTE_SIZE * 2], PALETTE_SIZE);
+    create_gradient_palette(pastel, &state->palettes[PALETTE_SIZE * 3], PALETTE_SIZE);
 
     // Convert frame-based values to millisecond-based values
     // 1 frame = 1000/60 ms
@@ -236,6 +245,14 @@ int main(void)
     styles[2].probability = 2;
     styles[2].palette_index = 2;  // Fleck palette
     styles[2].emit_speed  = 200;
+
+    set_default_style(&styles[3], frame_ms);
+    styles[3].probability = 0;
+    styles[3].palette_index = 3;  // Pastel palette
+    styles[3].min_life   /= 2;
+    styles[3].max_life   /= 2;
+    styles[3].emit_speed  = 25;
+    styles[3].gravity    /= 2.0f; // pixels/second/second
 
     // Initialise SDL
     if (!SDL_Init(SDL_INIT_VIDEO))
@@ -331,27 +348,28 @@ int main(void)
 
             // Mouse click to create new explosion
             case SDL_EVENT_MOUSE_BUTTON_DOWN:
+                int style;
+
+                    // Map buttons to styles
                 switch (e.button.button)
                 {
                 case 1:
-                    create_explosion(&state->ps, -1,
-                                     e.button.x / SCALE, e.button.y / SCALE,
-                                     last_mouse_vx, last_mouse_vy,
-                                     nparticles);
+                    style = -1;
                     break;
                 case 2:
-                    create_explosion(&state->ps, 0,
-                                     e.button.x / SCALE, e.button.y / SCALE,
-                                     last_mouse_vx, last_mouse_vy,
-                                     nparticles);
+                    style = 0;
                     break;
                 case 3:
-                    create_explosion(&state->ps, 2,
-                                     e.button.x / SCALE, e.button.y / SCALE,
-                                     last_mouse_vx, last_mouse_vy,
-                                     nparticles);
+                    style = 2;
+                    break;
+                default:
+                    style = 3;
                     break;
                 }
+                create_explosion(&state->ps, style,
+                                 e.button.x / SCALE, e.button.y / SCALE,
+                                 last_mouse_vx, last_mouse_vy,
+                                 nparticles);
                 break;
 
             case SDL_EVENT_KEY_DOWN:
