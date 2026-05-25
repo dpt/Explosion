@@ -350,7 +350,7 @@ int main(void)
             case SDL_EVENT_MOUSE_BUTTON_DOWN:
                 int style;
 
-                    // Map buttons to styles
+                // Map buttons to styles
                 switch (e.button.button)
                 {
                 case 1:
@@ -479,7 +479,8 @@ int main(void)
         // Cap to selected FPS (not PHYSICS_FPS)
         float elapsedMS = (end - start) / SDL_GetPerformanceFrequency() * 1000.0f;
         float delay = 1000.0f / (float) fpses[selectedFPS] - elapsedMS;
-        SDL_Delay(delay);
+        if (delay > 0.0f)
+            SDL_Delay((Uint32) delay);
     }
 
     // Cleanup
