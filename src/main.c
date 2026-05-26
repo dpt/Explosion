@@ -322,20 +322,25 @@ int main(void)
     srand(time(NULL));
 
     // Game loop
-    int quit = 0;
-    int pause = 0;
-    int nparticles = NPARTICLES;
-    int selectedFPS = 6; /* 60fps */
-    Uint64 last_physics_time = SDL_GetPerformanceCounter();
+    int     quit = 0;
+    int     pause = 0;
+    int     nparticles = NPARTICLES;
+    int     selectedFPS = 6; /* 60fps */
+    Uint64  last_physics_time = SDL_GetPerformanceCounter();
+    int     style = 0;
 
     // Mouse velocity tracking
-    int last_mouse_x = -1, last_mouse_y = -1;
-    Uint64 last_mouse_time = 0;
-    float last_mouse_vx = 0.0f, last_mouse_vy = 0.0f;
+    int     last_mouse_x = -1, last_mouse_y = -1;
+    Uint64  last_mouse_time = 0;
+    float   last_mouse_vx = 0.0f, last_mouse_vy = 0.0f;
+    // Mouse emission tracking
+    Uint64  last_mouse_emit_time = 0;
+
+    const float cps = SDL_GetPerformanceFrequency();
 
     while (!quit)
     {
-        Uint64 start = SDL_GetPerformanceCounter();
+        Uint64 now = SDL_GetPerformanceCounter();
 
         // Handle events
         while (SDL_PollEvent(&e))
@@ -348,8 +353,6 @@ int main(void)
 
             // Mouse click to create new explosion
             case SDL_EVENT_MOUSE_BUTTON_DOWN:
-                int style;
-
                 // Map buttons to styles
                 switch (e.button.button)
                 {
@@ -408,27 +411,40 @@ int main(void)
 
             case SDL_EVENT_MOUSE_MOTION:
             {
-                int   current_x = e.motion.x / SCALE;
-                int   current_y = e.motion.y / SCALE;
-                float vx        = 0.0f;
-                float vy        = 0.0f;
-                float damping   = 0.5f;
+                const float rate    = 15.0f;  // aim to emit 15 particles/s
+                const float damping = 0.25f;
+
+                int   mouse_x = e.motion.x / SCALE;
+                int   mouse_y = e.motion.y / SCALE;
+                float vx      = 0.0f; // velocity in pixels/s
+                float vy      = 0.0f;
 
                 if (last_mouse_time != 0)
                 {
-                    float dt = (start - last_mouse_time) / (float) SDL_GetPerformanceFrequency();
+                    float dt = (now - last_mouse_time) / cps;
                     if (dt > 0.001f)
                     {
-                        vx = (float) (current_x - last_mouse_x) / dt;
-                        vy = (float) (current_y - last_mouse_y) / dt;
+                        vx = (mouse_x - last_mouse_x) / dt;
+                        vy = (mouse_y - last_mouse_y) / dt;
                     }
                 }
-                create_particle(&state->ps, 1, current_x, current_y, vx * damping, vy * damping);
-                last_mouse_x = current_x;
-                last_mouse_y = current_y;
-                last_mouse_time = start;
-                last_mouse_vx = vx;
-                last_mouse_vy = vy;
+
+                last_mouse_x    = mouse_x;
+                last_mouse_y    = mouse_y;
+                last_mouse_time = now;
+                last_mouse_vx   = vx;
+                last_mouse_vy   = vy;
+
+                float dt = (now - last_mouse_emit_time) / cps;
+                int pts = dt * rate;
+                if (pts > 0) {
+                    while (pts-- > 0)
+                        create_particle(&state->ps,
+                                        1,
+                                        mouse_x, mouse_y,
+                                        vx * damping, vy * damping);
+                    last_mouse_emit_time = now;
+                }
             }
             break;
 
@@ -477,7 +493,7 @@ int main(void)
         Uint64 end = SDL_GetPerformanceCounter();
 
         // Cap to selected FPS (not PHYSICS_FPS)
-        float elapsedMS = (end - start) / SDL_GetPerformanceFrequency() * 1000.0f;
+        float elapsedMS = (end - now) / SDL_GetPerformanceFrequency() * 1000.0f;
         float delay = 1000.0f / (float) fpses[selectedFPS] - elapsedMS;
         if (delay > 0.0f)
             SDL_Delay((Uint32) delay);
