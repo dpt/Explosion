@@ -60,10 +60,10 @@ static const gradientstop_t fleck[] =
 
 static const gradientstop_t pastel[] =
 {
-    { { 251, 243, 185 }, 0.0f }, // Lemon
-    { { 255, 220, 204 }, 0.3f }, // Peach
-    { { 253, 183, 234 }, 0.7f }, // Pink
-    { { 183, 177, 242 }, 1.0f }, // Mauve
+    { { 251, 243, 185, 255 }, 0.0f }, // Lemon
+    { { 255, 220, 204, 255 }, 0.3f }, // Peach
+    { { 253, 183, 234, 255 }, 0.7f }, // Pink
+    { { 183, 177, 242, 255 }, 1.0f }, // Mauve
 };
 
 /* -------------------------------------------------------------------------- */
@@ -125,6 +125,10 @@ typedef struct State
     float  last_mouse_vx;
     float  last_mouse_vy;
     Uint64 last_mouse_emit_time;  // (Uint64)-1 = not yet seen
+
+    // No-clear mode
+    int          no_clear;
+    SDL_Texture *trail;
 } State;
 
 /* -------------------------------------------------------------------------- */
@@ -194,11 +198,26 @@ static void render_others(State *state)
 
 static void render(State *state)
 {
-    SDL_SetRenderDrawColor(state->renderer, 0, 0, 0, 255);
-    SDL_RenderClear(state->renderer);
-    render_palettes(state);
-    render_others(state);
-    render_particles(&state->ps);
+    if (state->no_clear)
+    {
+        SDL_SetRenderTarget(state->renderer, state->trail);
+        SDL_SetRenderScale(state->renderer, 1.0f, 1.0f);
+        render_palettes(state);
+        render_others(state);
+        render_particles(&state->ps);
+        SDL_SetRenderTarget(state->renderer, NULL);
+        SDL_SetRenderScale(state->renderer, SCALE, SCALE);
+        SDL_FRect dst = { 0.0f, 0.0f, WIDTH, HEIGHT };
+        SDL_RenderTexture(state->renderer, state->trail, NULL, &dst);
+    }
+    else
+    {
+        SDL_SetRenderDrawColor(state->renderer, 0, 0, 0, 255);
+        SDL_RenderClear(state->renderer);
+        render_palettes(state);
+        render_others(state);
+        render_particles(&state->ps);
+    }
     SDL_RenderPresent(state->renderer);
 }
 
@@ -279,6 +298,21 @@ static void key_fps_delta(State *s, int d)
 static void key_fps_dec(State *s) { key_fps_delta(s, -1); }
 static void key_fps_inc(State *s) { key_fps_delta(s, +1); }
 
+static void key_no_clear(State *s)
+{
+    s->no_clear = !s->no_clear;
+    if (!s->no_clear)
+    {
+        SDL_SetRenderTarget(s->renderer, s->trail);
+        SDL_SetRenderScale(s->renderer, 1.0f, 1.0f);
+        SDL_SetRenderDrawColor(s->renderer, 0, 0, 0, 255);
+        SDL_RenderClear(s->renderer);
+        SDL_SetRenderTarget(s->renderer, NULL);
+        SDL_SetRenderScale(s->renderer, SCALE, SCALE);
+    }
+    printf("No-clear mode %s\n", s->no_clear ? "enabled" : "disabled");
+}
+
 typedef void (*key_fn_t)(State *);
 
 typedef struct
@@ -293,6 +327,7 @@ static const key_binding_t key_table[] =
     { SDLK_DELETE,       key_reset   },
     { SDLK_G,            key_gravity },
     { SDLK_W,            key_walls   },
+    { SDLK_F,            key_no_clear },
     { SDLK_Q,            key_quit    },
     { SDLK_LEFTBRACKET,  key_fps_dec },
     { SDLK_RIGHTBRACKET, key_fps_inc },
@@ -474,6 +509,27 @@ static SDL_Window *init_sdl(State *state)
     }
 
     SDL_SetRenderScale(state->renderer, SCALE, SCALE);
+
+    state->trail = SDL_CreateTexture(state->renderer,
+                                     SDL_PIXELFORMAT_RGBA8888,
+                                     SDL_TEXTUREACCESS_TARGET,
+                                     WIDTH, HEIGHT);
+    if (state->trail == NULL)
+    {
+        printf("Trail texture could not be created! SDL_Error: %s\n", SDL_GetError());
+        SDL_DestroyRenderer(state->renderer);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return NULL;
+    }
+    SDL_SetTextureScaleMode(state->trail, SDL_SCALEMODE_NEAREST);
+    SDL_SetRenderTarget(state->renderer, state->trail);
+    SDL_SetRenderScale(state->renderer, 1.0f, 1.0f);
+    SDL_SetRenderDrawColor(state->renderer, 0, 0, 0, 255);
+    SDL_RenderClear(state->renderer);
+    SDL_SetRenderTarget(state->renderer, NULL);
+    SDL_SetRenderScale(state->renderer, SCALE, SCALE);
+
     return window;
 }
 
@@ -545,6 +601,7 @@ int main(void)
             SDL_Delay((Uint32)delay);
     }
 
+    SDL_DestroyTexture(state->trail);
     SDL_DestroyRenderer(state->renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();

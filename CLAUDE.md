@@ -37,6 +37,7 @@ Run:
 - Delete: Reset particle system
 - G: Toggle gravity
 - W: Toggle walls (particles bounce off edges)
+- F: Toggle no-clear mode (frames accumulate without clearing)
 - Q: Quit
 - []: Change frame rate (1-960fps)
 
