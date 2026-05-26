@@ -18,12 +18,13 @@
 
 // Config
 
-#define SCALE       (4) // screen scale
-#define MAX_STYLES  (4)
-#define NPARTICLES  (MAX_PARTICLES / 2) // num. particles to spawn on clicks
+#define SCALE              (4)   // screen scale
+#define MAX_STYLES         (4)
+#define NPARTICLES         (MAX_PARTICLES / 2) // num. particles to spawn on clicks
 
-#define MOUSE_EMIT_RATE  5.0f
-#define MOUSE_DAMPING    0.25f
+#define MOUSE_EMIT_RATE    5.0f
+#define MOUSE_EMIT_MAX     10    // cap burst on unpause
+#define MOUSE_DAMPING      0.25f
 
 /* -------------------------------------------------------------------------- */
 
@@ -71,28 +72,8 @@ static const int fpses[] = { 1, 2, 5, 10, 15, 30, 60, 120, 240, 480, 960 };
 
 /* -------------------------------------------------------------------------- */
 
-/// Render a filled rectangle centered on (x,y) with dimensions (w,h).
-static void rectfill(int x, int y, int w, int h, const SDL_Color *colour, SDL_Renderer *renderer)
-{
-    SDL_FRect rect;
-
-    rect.x = x - w / 2.0f;
-    rect.y = y - h / 2.0f;
-    rect.w = w;
-    rect.h = h;
-
-    SDL_SetRenderDrawColor(renderer, colour->r, colour->g, colour->b, colour->a);
-    SDL_RenderFillRect(renderer, &rect);
-}
-
-/// Render a filled square centred on (x,y) with dimensions (size,size).
-static void squarefill(int x, int y, int size, const SDL_Color *colour, SDL_Renderer *renderer)
-{
-    rectfill(x, y, size, size, colour, renderer);
-}
-
-/// Render an unfilled rectangle centered on (x,y) with dimensions (w,h).
-static void rect(int x, int y, int w, int h, const SDL_Color *colour, SDL_Renderer *renderer)
+static void draw_rect(int x, int y, int w, int h, const SDL_Color *colour,
+                      SDL_Renderer *renderer, int filled)
 {
     SDL_FRect r;
 
@@ -102,13 +83,22 @@ static void rect(int x, int y, int w, int h, const SDL_Color *colour, SDL_Render
     r.h = h;
 
     SDL_SetRenderDrawColor(renderer, colour->r, colour->g, colour->b, colour->a);
-    SDL_RenderRect(renderer, &r);
+    if (filled)
+        SDL_RenderFillRect(renderer, &r);
+    else
+        SDL_RenderRect(renderer, &r);
+}
+
+/// Render a filled square centred on (x,y) with dimensions (size,size).
+static void squarefill(int x, int y, int size, const SDL_Color *colour, SDL_Renderer *renderer)
+{
+    draw_rect(x, y, size, size, colour, renderer, 1);
 }
 
 /// Render an unfilled square centred on (x,y) with dimensions (size,size).
 static void square(int x, int y, int size, const SDL_Color *colour, SDL_Renderer *renderer)
 {
-    rect(x, y, size, size, colour, renderer);
+    draw_rect(x, y, size, size, colour, renderer, 0);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -129,12 +119,12 @@ typedef struct State
     float  cps; // counter ticks per second
 
     // Mouse state
-    Uint64 last_mouse_time;  // (Uint64)-1 = not yet seen
+    Uint64 last_mouse_time;       // (Uint64)-1 = not yet seen
     int    last_mouse_x;
     int    last_mouse_y;
     float  last_mouse_vx;
     float  last_mouse_vy;
-    Uint64 last_mouse_emit_time;
+    Uint64 last_mouse_emit_time;  // (Uint64)-1 = not yet seen
 } State;
 
 /* -------------------------------------------------------------------------- */
@@ -218,20 +208,18 @@ static void render(State *state)
 
 static void update(State *state, Uint64 now)
 {
-    Uint64 physics_now = SDL_GetPerformanceCounter();
-    float  physics_dt  = (physics_now - state->last_physics_time)
-                         / (float) SDL_GetPerformanceFrequency();
-    state->last_physics_time = physics_now;
+    float physics_dt = (now - state->last_physics_time) / state->cps;
+    state->last_physics_time = now;
     update_particles(&state->ps, physics_dt);
 
-    if (state->last_mouse_emit_time == 0)
+    if (state->last_mouse_emit_time == (Uint64)-1)
     {
         state->last_mouse_emit_time = now;
     }
     else
     {
-        float  emit_dt = (now - state->last_mouse_emit_time) / state->cps;
-        int    pts     = (int)(emit_dt * MOUSE_EMIT_RATE);
+        float emit_dt = (now - state->last_mouse_emit_time) / state->cps;
+        int   pts     = CLAMP((int)(emit_dt * MOUSE_EMIT_RATE), 0, MOUSE_EMIT_MAX);
         if (pts > 0)
         {
             while (pts-- > 0)
@@ -282,17 +270,14 @@ static void key_walls(State *s)
     printf("Walls %s\n", (s->ps.flags & PARTICLE_FLAG_WALLS) ? "enabled" : "disabled");
 }
 
-static void key_fps_dec(State *s)
+static void key_fps_delta(State *s, int d)
 {
-    s->selectedFPS = CLAMP(s->selectedFPS - 1, 0, (int)NELEMS(fpses) - 1);
+    s->selectedFPS = CLAMP(s->selectedFPS + d, 0, (int)NELEMS(fpses) - 1);
     printf("%dfps\n", fpses[s->selectedFPS]);
 }
 
-static void key_fps_inc(State *s)
-{
-    s->selectedFPS = CLAMP(s->selectedFPS + 1, 0, (int)NELEMS(fpses) - 1);
-    printf("%dfps\n", fpses[s->selectedFPS]);
-}
+static void key_fps_dec(State *s) { key_fps_delta(s, -1); }
+static void key_fps_inc(State *s) { key_fps_delta(s, +1); }
 
 typedef void (*key_fn_t)(State *);
 
@@ -338,7 +323,7 @@ static void handle_mouse_button_down(State *state, const SDL_MouseButtonEvent *e
 {
     int btn   = ev->button - 1;
     int last  = (int)NELEMS(button_styles) - 1;
-    int style = (btn >= 0 && btn <= last) ? button_styles[btn] : button_styles[last];
+    int style = (btn <= last) ? button_styles[btn] : button_styles[last];
     create_explosion(&state->ps, style,
                      ev->x / SCALE, ev->y / SCALE,
                      state->last_mouse_vx, state->last_mouse_vy,
@@ -539,6 +524,7 @@ int main(void)
     state->selectedFPS       = 6; // 60fps
     state->last_physics_time = SDL_GetPerformanceCounter();
     state->last_mouse_time   = (Uint64)-1;
+    state->last_mouse_emit_time = (Uint64)-1;
     state->cps               = (float)SDL_GetPerformanceFrequency();
 
     while (!state->quit)
@@ -553,7 +539,7 @@ int main(void)
         render(state);
 
         Uint64 end       = SDL_GetPerformanceCounter();
-        float  elapsedMS = (end - now) / (float)SDL_GetPerformanceFrequency() * 1000.0f;
+        float  elapsedMS = (end - now) / state->cps * 1000.0f;
         float  delay     = 1000.0f / (float)fpses[state->selectedFPS] - elapsedMS;
         if (delay > 0.0f)
             SDL_Delay((Uint32)delay);
