@@ -158,19 +158,22 @@ static void render_particle_callback(int x, int y, int size, int palette_index, 
 
 static void render_palettes(State *state)
 {
+    static const SDL_Color black = { 0, 0, 0, 255 };
+
     float t  = SDL_GetTicks() / PHYSICS_FPS;
     int   pi = 0;
 
     for (int p = 0; p < MAX_STYLES; p++)
         for (int i = 0; i < PALETTE_SIZE; i++)
         {
-            float s = sinf(t / 2.0f + p + i) * 2.0f;
-            float c = cosf(t / 2.0f + p + i) * 2.0f;
-            render_particle_callback((i + 1) * 4 + s,
-                                     (p + 1) * 5 + c,
-                                     3.0f + s * 0.75f,
-                                     pi++,
-                                     state);
+            float s    = sinf(t / 2.0f + p + i) * 2.0f;
+            float c    = cosf(t / 2.0f + p + i) * 2.0f;
+            int   x    = (i + 1) * 5 + s;
+            int   y    = (p + 1) * 6 + c;
+            int   size = 3.0f + s * 0.75f;
+
+            render_particle_callback(x, y, size, pi++, state);
+            square(x, y, size + 2, &black, state->renderer);
         }
 }
 
