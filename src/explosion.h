@@ -22,19 +22,11 @@
 
 /* -------------------------------------------------------------------------- */
 
-// Common macros
-//
-
-#define NELEMS(a) (sizeof(a) / sizeof(a[0]))
-#define CLAMP(a,min,max) ((a) < (min) ? (min) : (a) > (max) ? (max) : a)
-
-/* -------------------------------------------------------------------------- */
-
 // Callback function pointer for obtaining random values (up to nbits bits)
 typedef unsigned int (*particle_rand_t)(int nbits, void *opaque);
 
 // Callback for time (returns milliseconds)
-typedef unsigned int (*particle_time_t)(void);
+typedef unsigned int (*particle_time_t)(void *opaque);
 
 // Callback for rendering a rectangle (x, y, size in pixels, palette index, opaque ptr)
 typedef void (*particle_render_t)(int x, int y, int size, int palette_index, void *opaque);
@@ -104,6 +96,7 @@ typedef struct particle_system
     const particle_style_t *styles;
     int     nstyles;
     float   wall_damping;
+    int     width, height; // bounds in pixels (init sets WIDTH, HEIGHT)
     particle_rand_t rand_cb;
     particle_time_t time_cb;
     particle_render_t render_cb;

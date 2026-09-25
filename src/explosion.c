@@ -10,11 +10,18 @@
 //
 
 #include <math.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 #include "explosion.h"
 
 #include <assert.h>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+#define CLAMP(a,min,max) ((a) < (min) ? (min) : (a) > (max) ? (max) : a)
 
 /* -------------------------------------------------------------------------- */
 
@@ -91,6 +98,8 @@ void init_particle_system(particle_system_t      *ps,
     ps->time_cb      = time_fn;
     ps->render_cb    = render_fn;
     ps->wall_damping = wall_damping;
+    ps->width        = WIDTH;
+    ps->height       = HEIGHT;
     ps->opaque       = opaque;
 
     // Total probabilities
@@ -177,7 +186,7 @@ void create_particle(particle_system_t *ps,
 
     // Set created_time to a future time for delayed start (in milliseconds)
     float delay_ms = randrangef(ps, 0.0f, s->max_delay);
-    p->created_time = ps->time_cb() + (unsigned int)delay_ms;
+    p->created_time = ps->time_cb(ps->opaque) + (unsigned int)delay_ms;
 }
 
 void create_explosion(particle_system_t *ps,
@@ -200,7 +209,7 @@ void create_explosion(particle_system_t *ps,
 
 void update_particles(particle_system_t *ps, float dt)
 {
-    unsigned int current_time = ps->time_cb();
+    unsigned int current_time = ps->time_cb(ps->opaque);
 
     for (int i = 0; i < MAX_PARTICLES; i++)
     {
@@ -240,9 +249,9 @@ void update_particles(particle_system_t *ps, float dt)
                 p->x = 0;
                 p->vx = +fabsf(p->vx) * ps->wall_damping;
             }
-            if (p->x >= WIDTH)
+            if (p->x >= ps->width)
             {
-                p->x = WIDTH - 1;
+                p->x = ps->width - 1;
                 p->vx = -fabsf(p->vx) * ps->wall_damping;
             }
             if (p->y < 0)
@@ -250,9 +259,9 @@ void update_particles(particle_system_t *ps, float dt)
                 p->y = 0;
                 p->vy = +fabsf(p->vy) * ps->wall_damping;
             }
-            if (p->y >= HEIGHT)
+            if (p->y >= ps->height)
             {
-                p->y = HEIGHT - 1;
+                p->y = ps->height - 1;
                 p->vy = -fabsf(p->vy) * ps->wall_damping;
             }
         }
@@ -260,8 +269,8 @@ void update_particles(particle_system_t *ps, float dt)
         // Check if particle should die
         if (age >= p->max_life ||
                 p->size < 0.5f ||
-                p->x < 0.0f || p->x >= WIDTH ||
-                p->y < 0.0f || p->y >= HEIGHT)
+                p->x < 0.0f || p->x >= ps->width ||
+                p->y < 0.0f || p->y >= ps->height)
         {
             p->style = 0;
             ps->free_indices[ps->free_count++] = i;  // Return index to free stack
@@ -284,7 +293,7 @@ void render_particles(particle_system_t *ps)
     int           palette_offset;
     int           colour_index;
 
-    unsigned int current_time = ps->time_cb();
+    unsigned int current_time = ps->time_cb(ps->opaque);
 
     for (i = 0; i < MAX_PARTICLES; i++)
     {
@@ -338,7 +347,7 @@ void create_emitter(particle_system_t *ps,
     e->emission_clump  = emission_clump;
     e->style           = style;
     e->lifetime        = lifetime;
-    e->last_emit_time  = e->start_time = ps->time_cb();
+    e->last_emit_time  = e->start_time = ps->time_cb(ps->opaque);
 }
 
 void update_emitters(particle_system_t *ps, unsigned int current_time)

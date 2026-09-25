@@ -18,6 +18,9 @@
 
 // Config
 
+#define NELEMS(a) (sizeof(a) / sizeof(a[0]))
+#define CLAMP(a,min,max) ((a) < (min) ? (min) : (a) > (max) ? (max) : a)
+
 #define SCALE              (4)   // screen scale
 #define MAX_STYLES         (4)
 #define NPARTICLES         (MAX_PARTICLES / 2) // num. particles to spawn on clicks
@@ -141,8 +144,9 @@ static unsigned int rand_callback(int nbits, void *opaque)
     return randpool_get(&state->randpool, nbits);
 }
 
-static unsigned int get_ticks_callback(void)
+static unsigned int get_ticks_callback(void *opaque)
 {
+    (void) opaque;
     return SDL_GetTicks();
 }
 
