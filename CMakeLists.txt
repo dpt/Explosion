@@ -9,7 +9,7 @@ add_library(explosion STATIC
         src/explosion.c
         src/explosion.h)
 target_include_directories(explosion PUBLIC src)
-target_compile_options(explosion PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(explosion PRIVATE -Wall -Wextra -pedantic)
 if(NOT MSVC)
     target_link_libraries(explosion PUBLIC m)
 endif()
@@ -25,7 +25,7 @@ if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
             src/random-pool.h
             src/main.c)
 
-    target_compile_options(Explosions PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(Explosions PRIVATE -Wall -Wextra -pedantic)
 
     target_link_libraries(Explosions explosion SDL3::SDL3)
 endif()
