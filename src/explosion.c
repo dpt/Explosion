@@ -40,7 +40,7 @@ static float randrangef(const particle_system_t *ps, float min, float max)
 // Return a random angle
 static float randangle(const particle_system_t *ps, float angle, float range)
 {
-    return (angle + fmodf(ps->rand_cb(32, ps->opaque), range) - range / 2.0f) * (float) M_PI / 180.0f;
+    return (angle + (float) fmod(ps->rand_cb(32, ps->opaque), range) - range / 2.0f) * (float) M_PI / 180.0f;
 }
 
 // Return a random speed
