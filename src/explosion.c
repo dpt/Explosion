@@ -21,6 +21,26 @@
 #define M_PI 3.14159265358979323846
 #endif
 
+// The float maths functions (sqrtf etc.) arrived in C99. RISC OS's
+// SharedCLibrary predates that so use the double forms there.
+#ifdef __riscos
+#define CEILF(x)    ((float) ceil(x))
+#define COSF(x)     ((float) cos(x))
+#define FABSF(x)    ((float) fabs(x))
+#define FMODF(x, y) ((float) fmod(x, y))
+#define POWF(x, y)  ((float) pow(x, y))
+#define SINF(x)     ((float) sin(x))
+#define SQRTF(x)    ((float) sqrt(x))
+#else
+#define CEILF  ceilf
+#define COSF   cosf
+#define FABSF  fabsf
+#define FMODF  fmodf
+#define POWF   powf
+#define SINF   sinf
+#define SQRTF  sqrtf
+#endif
+
 #define CLAMP(a,min,max) ((a) < (min) ? (min) : (a) > (max) ? (max) : a)
 
 /* -------------------------------------------------------------------------- */
@@ -40,7 +60,7 @@ static float randrangef(const particle_system_t *ps, float min, float max)
 // Return a random angle
 static float randangle(const particle_system_t *ps, float angle, float range)
 {
-    return (angle + (float) fmod(ps->rand_cb(32, ps->opaque), range) - range / 2.0f) * (float) M_PI / 180.0f;
+    return (angle + FMODF(ps->rand_cb(32, ps->opaque), range) - range / 2.0f) * (float) M_PI / 180.0f;
 }
 
 // Return a random speed
@@ -136,7 +156,7 @@ void set_default_style(particle_style_t *style, float frame_ms)
     style->max_size      = 3;
     style->max_delay     = frame_ms; // milliseconds
     style->gravity       = GRAVITY * PHYSICS_FPS * PHYSICS_FPS; // pixels/second/second
-    style->size_decay    = powf(0.999f, PHYSICS_FPS); // per-second decay factor
+    style->size_decay    = POWF(0.999f, PHYSICS_FPS); // per-second decay factor
     style->palette_index = 0;
 }
 
@@ -171,8 +191,8 @@ void create_particle(particle_system_t *ps,
     speed = randspeed(ps, s->emit_speed);
 
     // Set velocity based on angle and speed (convert to pixels/second)
-    p->vx = cosf(angle) * speed * s->vel_scale * PHYSICS_FPS;
-    p->vy = sinf(angle) * speed * s->vel_scale * PHYSICS_FPS;
+    p->vx = COSF(angle) * speed * s->vel_scale * PHYSICS_FPS;
+    p->vy = SINF(angle) * speed * s->vel_scale * PHYSICS_FPS;
 
     // Add additional velocity offset
     p->vx += vx;
@@ -232,7 +252,7 @@ void update_particles(particle_system_t *ps, float dt)
 
         // Update size decay exponentially based on delta time
         if (s->size_decay)
-            p->size *= powf(s->size_decay, dt);
+            p->size *= POWF(s->size_decay, dt);
 
         if ((ps->flags & PARTICLE_FLAG_NO_GRAVITY) == 0)
             // Apply gravity based on delta time
@@ -247,22 +267,22 @@ void update_particles(particle_system_t *ps, float dt)
             if (p->x < 0)
             {
                 p->x = 0;
-                p->vx = +fabsf(p->vx) * ps->wall_damping;
+                p->vx = +FABSF(p->vx) * ps->wall_damping;
             }
             if (p->x >= ps->width)
             {
                 p->x = ps->width - 1;
-                p->vx = -fabsf(p->vx) * ps->wall_damping;
+                p->vx = -FABSF(p->vx) * ps->wall_damping;
             }
             if (p->y < 0)
             {
                 p->y = 0;
-                p->vy = +fabsf(p->vy) * ps->wall_damping;
+                p->vy = +FABSF(p->vy) * ps->wall_damping;
             }
             if (p->y >= ps->height)
             {
                 p->y = ps->height - 1;
-                p->vy = -fabsf(p->vy) * ps->wall_damping;
+                p->vy = -FABSF(p->vy) * ps->wall_damping;
             }
         }
 
@@ -313,7 +333,7 @@ void render_particles(particle_system_t *ps)
         palette_offset = ps->styles[p->style - 1].palette_index * PALETTE_SIZE + colour_index;
 
         // Render through callback
-        ps->render_cb((int) p->x, (int) p->y, (int) ceilf(p->size), palette_offset, ps->opaque);
+        ps->render_cb((int) p->x, (int) p->y, (int) CEILF(p->size), palette_offset, ps->opaque);
     }
 }
 
@@ -470,11 +490,11 @@ void update_repellers(particle_system_t *ps, unsigned int current_time)
             // AABB check: quick rejection if particle is outside bounding box
             dx = p->x - r->x;
             dy = p->y - r->y;
-            if (r->max_distance > 0.0f && (fabsf(dx) > r->max_distance || fabsf(dy) > r->max_distance))
+            if (r->max_distance > 0.0f && (FABSF(dx) > r->max_distance || FABSF(dy) > r->max_distance))
                 continue;
 
             // Calculate actual distance only if AABB check passes
-            distance = sqrtf(dx * dx + dy * dy);
+            distance = SQRTF(dx * dx + dy * dy);
 
             // Skip if particle is too far from repeller
             if (r->max_distance > 0.0f && distance > r->max_distance)
